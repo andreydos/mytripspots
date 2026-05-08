@@ -1,15 +1,18 @@
-const CACHE_NAME = "mytripspots-shell-v2";
-const SHELL_FILES = ["/", "/manifest.json"];
+// Bump only when you change precache contents/strategy and need to drop old cache entries — not every deploy.
+const CACHE_NAME = "mytripspots-shell-v3";
+// Do not precache "/": it embeds chunk hashes; a stale shell breaks every new Next.js deploy.
+const SHELL_FILES = ["/manifest.json"];
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_FILES)));
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))).then(() =>
+        self.clients.claim()
       )
     )
   );
@@ -21,6 +24,13 @@ self.addEventListener("fetch", (event) => {
   // Next.js dev/prod bundles must not be served from cache — hashes change on rebuild.
   if (url.pathname.startsWith("/_next/")) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+  // HTML navigations: network-first so each deploy gets a fresh document (correct chunk URLs).
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
     return;
   }
   event.respondWith(
