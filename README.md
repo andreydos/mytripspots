@@ -1,4 +1,4 @@
-# Travel PWA
+# MyTripSpots
 
 Monorepo with Next.js PWA frontend and FastAPI GraphQL backend.
 
@@ -9,8 +9,7 @@ Monorepo with Next.js PWA frontend and FastAPI GraphQL backend.
 - `docs` — architecture and scope docs
 
 ## Local Run
-1. Start database:
-   - `docker compose up -d`
+1. Database: use your **Supabase** Postgres URL in `apps/api/.env` as `DATABASE_URL` (Session pooler or direct connection from the Supabase dashboard). Optionally, for a fully local Postgres instead, run `docker compose up -d` — default DB name in compose is `mytripspots`.
 2. Web:
    - copy `apps/web/.env.example` to `apps/web/.env.local`
    - `pnpm install`
@@ -47,9 +46,14 @@ Recommended media settings:
 
 ## Deploy
 ### Vercel (web)
-- root directory: `apps/web`
-- use `apps/web/vercel.json` (install runs from monorepo root so `pnpm` workspace + `next` resolve correctly)
-- commit `pnpm-lock.yaml` at repo root (do not gitignore it)
+- **Project → Settings → General**
+  - **Root Directory**: `apps/web` (обязательно; не корень монорепы)
+  - **Framework Preset**: **Next.js** (авто или вручную)
+  - **Output Directory**: оставь **пустым** (для Next.js Vercel сам использует `.next`). Если там стоит `public` — сотри: иначе будет ошибка *No Output Directory named "public"*.
+- **Build & Development**: команды можно не переопределять — берутся из [`apps/web/vercel.json`](apps/web/vercel.json) (`install` из корня репо + `pnpm --filter web build`).
+- Закоммить [`pnpm-lock.yaml`](pnpm-lock.yaml) в корне репозитория.
+
+**CLI:** запускай из каталога приложения, чтобы подтянулся Next-проект: `cd apps/web && npx vercel` (или после линка с корректным Root Directory в дашборде).
 
 ### Railway (api)
 - root directory: `apps/api`

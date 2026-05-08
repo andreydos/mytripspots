@@ -4,7 +4,7 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: travel_pwa
+      POSTGRES_DB: mytripspots
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:

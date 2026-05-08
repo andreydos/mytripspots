@@ -1,7 +1,7 @@
 # Architecture
 
 ## Core Components
-- `apps/web`: Next.js PWA with Clerk auth, OSM map, offline drafts and sync queue.
+- `apps/web`: MyTripSpots Next.js PWA with Clerk auth, OSM map, offline drafts and sync queue.
 - `apps/api`: FastAPI + Strawberry GraphQL API, Clerk token validation, owner-scoped CRUD.
 - `infra/sql`: PostgreSQL migrations for Supabase-compatible schema.
 - `Cloudflare R2`: object storage for place photos via presigned upload URLs.

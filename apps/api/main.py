@@ -8,7 +8,7 @@ from strawberry.fastapi import GraphQLRouter
 
 from app.graphql.schema import schema
 
-app = FastAPI(title="Travel PWA API", version="0.1.0")
+app = FastAPI(title="MyTripSpots API", version="0.1.0")
 graphql_app = GraphQLRouter(schema)
 app.include_router(graphql_app, prefix="/graphql")
 rate_windows: dict[str, deque[float]] = defaultdict(deque)

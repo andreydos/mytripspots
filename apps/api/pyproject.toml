@@ -1,7 +1,7 @@
 [project]
-name = "travel-pwa-api"
+name = "mytripspots-api"
 version = "0.1.0"
-description = "FastAPI GraphQL backend for Travel PWA"
+description = "FastAPI GraphQL backend for MyTripSpots"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",

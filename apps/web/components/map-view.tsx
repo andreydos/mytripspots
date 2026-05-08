@@ -16,7 +16,7 @@ export function MapView({ places }: { places: PlacePin[] }) {
       center={center}
       zoom={5}
       scrollWheelZoom={false}
-      style={{ height: 360, width: "100%", borderRadius: 12, overflow: "hidden" }}
+      className="leaflet-container z-0 shadow-inner ring-1 ring-black/5"
     >
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {places.map((p) => (

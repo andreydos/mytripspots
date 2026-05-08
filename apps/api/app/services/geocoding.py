@@ -12,7 +12,7 @@ def geocode(query: str) -> list[Mapping]:
         response = client.get(
             f"{settings.nominatim_base_url}/search",
             params={"q": query, "format": "jsonv2", "limit": 5},
-            headers={"User-Agent": "travel-pwa/0.1"},
+            headers={"User-Agent": "mytripspots/0.1"},
         )
         response.raise_for_status()
         return response.json()
@@ -24,7 +24,7 @@ def reverse_geocode(lat: float, lng: float) -> Mapping:
         response = client.get(
             f"{settings.nominatim_base_url}/reverse",
             params={"lat": lat, "lon": lng, "format": "jsonv2"},
-            headers={"User-Agent": "travel-pwa/0.1"},
+            headers={"User-Agent": "mytripspots/0.1"},
         )
         response.raise_for_status()
         return response.json()

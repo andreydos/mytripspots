@@ -1,4 +1,4 @@
-const CACHE_NAME = "travel-pwa-shell-v1";
+const CACHE_NAME = "mytripspots-shell-v2";
 const SHELL_FILES = ["/", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -17,6 +17,12 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  // Next.js dev/prod bundles must not be served from cache — hashes change on rebuild.
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
