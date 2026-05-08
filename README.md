@@ -48,7 +48,8 @@ Recommended media settings:
 ## Deploy
 ### Vercel (web)
 - root directory: `apps/web`
-- apply `apps/web/vercel.json`
+- use `apps/web/vercel.json` (install runs from monorepo root so `pnpm` workspace + `next` resolve correctly)
+- commit `pnpm-lock.yaml` at repo root (do not gitignore it)
 
 ### Railway (api)
 - root directory: `apps/api`

@@ -1,4 +1,5 @@
 import "./globals.css";
+import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { ServiceWorkerRegister } from "./sw-register";

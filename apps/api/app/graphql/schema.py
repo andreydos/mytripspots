@@ -2,6 +2,7 @@ from datetime import datetime
 
 import strawberry
 from sqlalchemy import or_, select
+from strawberry.types import Info
 
 from app.db.models import Place, PlacePhoto, Trip
 from app.db.session import SessionLocal
@@ -18,7 +19,7 @@ from app.services.geocoding import geocode
 from app.services.storage import create_presigned_put_url, generate_owner_key, head_object, validate_upload_request
 
 
-def _require_user(info) -> RequestUser:
+def _require_user(info: Info) -> RequestUser:
     auth_header = info.context["request"].headers.get("Authorization")
     return authenticate(auth_header)
 
@@ -66,7 +67,7 @@ def _place_to_type(place: Place) -> PlaceType:
 @strawberry.type
 class Query:
     @strawberry.field
-    def me(self, info) -> UserType:
+    def me(self, info: Info) -> UserType:
         user = _require_user(info)
         return UserType(
             id=user.id,
@@ -76,14 +77,14 @@ class Query:
         )
 
     @strawberry.field
-    def my_trips(self, info) -> list[TripType]:
+    def my_trips(self, info: Info) -> list[TripType]:
         user = _require_user(info)
         with SessionLocal() as session:
             rows = session.scalars(select(Trip).where(Trip.owner_id == user.id).order_by(Trip.created_at.desc())).all()
             return [_trip_to_type(r) for r in rows]
 
     @strawberry.field
-    def trip_places(self, info, trip_id: str, search: str | None = None) -> list[PlaceType]:
+    def trip_places(self, info: Info, trip_id: str, search: str | None = None) -> list[PlaceType]:
         user = _require_user(info)
         with SessionLocal() as session:
             trip = session.scalar(select(Trip).where(Trip.id == trip_id))
@@ -98,7 +99,7 @@ class Query:
             return [_place_to_type(r) for r in rows]
 
     @strawberry.field
-    def geocode(self, info, query: str) -> list[GeocodeResultType]:
+    def geocode(self, info: Info, query: str) -> list[GeocodeResultType]:
         _require_user(info)
         payload = geocode(query)
         return [
@@ -114,7 +115,7 @@ class Query:
 @strawberry.type
 class Mutation:
     @strawberry.mutation
-    def create_trip(self, info, title: str, description: str | None = None, visibility: str = "private") -> TripType:
+    def create_trip(self, info: Info, title: str, description: str | None = None, visibility: str = "private") -> TripType:
         user = _require_user(info)
         with SessionLocal() as session:
             trip = Trip(owner_id=user.id, title=title, description=description, visibility=visibility)
@@ -126,7 +127,7 @@ class Mutation:
     @strawberry.mutation
     def create_place(
         self,
-        info,
+        info: Info,
         trip_id: str,
         title: str,
         lat: float,
@@ -147,7 +148,7 @@ class Mutation:
             return _place_to_type(place)
 
     @strawberry.mutation
-    def init_upload(self, info, mime: str, size_bytes: int, ext: str = "jpg") -> UploadInitType:
+    def init_upload(self, info: Info, mime: str, size_bytes: int, ext: str = "jpg") -> UploadInitType:
         user = _require_user(info)
         validate_upload_request(mime=mime, size_bytes=size_bytes)
         key = generate_owner_key(owner_id=user.id, ext=ext)
@@ -157,7 +158,7 @@ class Mutation:
     @strawberry.mutation
     def complete_upload(
         self,
-        info,
+        info: Info,
         place_id: str,
         key: str,
         mime: str,
@@ -197,7 +198,7 @@ class Mutation:
             return _photo_to_type(photo)
 
     @strawberry.mutation
-    def soft_delete_photo(self, info, photo_id: str) -> bool:
+    def soft_delete_photo(self, info: Info, photo_id: str) -> bool:
         user = _require_user(info)
         with SessionLocal() as session:
             photo = session.scalar(

@@ -4,10 +4,10 @@ node_modules
 dist
 coverage
 .venv
+*.egg-info/
 __pycache__
 *.pyc
 .env
 .env.local
 .env.*.local
 .turbo
-pnpm-lock.yaml
