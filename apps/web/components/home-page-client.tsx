@@ -36,26 +36,6 @@ function connectivityDown(isOnline: boolean, probeOffline: boolean): boolean {
   return navigatorReportsOffline() || !isOnline || probeOffline;
 }
 
-// #region agent log
-function postAgentDebug(payload: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  const body = JSON.stringify({
-    sessionId: "2e93f5",
-    timestamp: Date.now(),
-    ...payload
-  });
-  void fetch("http://127.0.0.1:7325/ingest/39d3f3c8-01d0-4338-a5d7-109b99a59a19", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2e93f5" },
-    body
-  }).catch(() => {});
-  void fetch(`${window.location.origin}/api/agent-debug-log`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body
-  }).catch(() => {});
-}
-// #endregion
 
 function subscribeNavigatorOnline(cb: () => void) {
   if (typeof window === "undefined") return () => {};
@@ -76,7 +56,10 @@ function useNavigatorOnline(): boolean {
   return useSyncExternalStore(
     subscribeNavigatorOnline,
     getNavigatorOnlineSnapshot,
-    () => true
+    () => {
+      if (typeof navigator !== "undefined") return navigator.onLine;
+      return true;
+    }
   );
 }
 
@@ -226,20 +209,20 @@ export function HomePageClient() {
     setMounted(true);
   }, []);
 
-  /** When navigator claims "online", localhost may still work without internet; Clerk then never reaches isLoaded. */
+  /** Offline detection: navigator may lie when service worker caches content, so always probe. */
   useEffect(() => {
-    if (!mounted || isLoaded) {
-      if (isLoaded) {
-        setProbeOffline(false);
-        setProbeSettled(false);
-      }
-      return;
-    }
+    if (!mounted) return;
     if (typeof window === "undefined") return;
 
     if (!navigator.onLine) {
       setProbeOffline(false);
       setProbeSettled(true);
+      return;
+    }
+
+    if (isLoaded) {
+      setProbeOffline(false);
+      setProbeSettled(false);
       return;
     }
 
@@ -282,14 +265,6 @@ export function HomePageClient() {
       } finally {
         clearTimeout(tid);
         if (!cancelled) {
-          // #region agent log
-          postAgentDebug({
-            location: "home-page-client.tsx:probe-finally",
-            message: "probe settled",
-            hypothesisId: "H1",
-            data: { ok: true }
-          });
-          // #endregion
           setProbeSettled(true);
         }
       }
@@ -313,14 +288,6 @@ export function HomePageClient() {
       return;
     }
     if (!probeSettled) return;
-    // #region agent log
-    postAgentDebug({
-      location: "home-page-client.tsx:stall-schedule",
-      message: "stall timer armed",
-      hypothesisId: "H3",
-      data: { probeSettled, isOnline, probeOffline }
-    });
-    // #endregion
     const t = window.setTimeout(() => setClerkStalled(true), CLERK_STALL_MS);
     return () => {
       clearTimeout(t);
@@ -340,50 +307,19 @@ export function HomePageClient() {
           ? "bypass-dashboard"
           : "bypass-guest"
         : "clerk-tree";
-    const logKey = `${branch}|${String(bypass)}|${String(connDown)}|${String(stallBypass)}`;
     if (routingLogKeyRef.current !== logKey) {
       routingLogKeyRef.current = logKey;
-      // #region agent log
-      postAgentDebug({
-        location: "home-page-client.tsx:routing",
-        message: "routing tick",
-        hypothesisId: "H2",
-        data: {
-          branch,
-          connDown,
-          stallBypass,
-          bypass,
-          probeSettled,
-          probeOffline,
-          clerkStalled,
-          clerkIsLoaded: isLoaded,
-          navigatorOffline: navigatorReportsOffline(),
-          hookIsOnline: isOnline
-        }
-      });
-      // #endregion
-    }
-    if (process.env.NODE_ENV === "development") {
-      // eslint-disable-next-line no-console -- routing trace
-      console.log("[MyTripSpots] routing", {
-        branch,
-        connDown,
-        stallBypass,
-        bypass,
-        probeSettled,
-        navigatorOffline: navigatorReportsOffline(),
-        hookIsOnline: isOnline,
-        probeOffline,
-        clerkStalled,
-        navigatorOnLine: navigator.onLine,
-        clerkIsLoaded: isLoaded,
-        snapshotSignedIn: snap?.signedIn ?? null
-      });
     }
   }, [mounted, isOnline, isLoaded, isSignedIn, probeOffline, clerkStalled, probeSettled]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !isLoaded) return;
+    // Triple-check offline: navigator takes priority (most reliable)
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    // Then check combined connectivity detection
+    const connectedState = connectivityDown(isOnline, probeOffline);
+    if (connectedState) return;
+
     if (isSignedIn) {
       saveSessionSnapshot({
         signedIn: true,
@@ -397,11 +333,17 @@ export function HomePageClient() {
     } else {
       saveSessionSnapshot({ signedIn: false });
     }
-  }, [isLoaded, isSignedIn, userId, user]);
+  }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
   const connDown = connectivityDown(isOnline, probeOffline);
   const stallBypass = probeSettled && clerkStalled && !isLoaded;
-  const offlineBypassClerk = mounted && !isLoaded && (connDown || stallBypass);
+  const navigatorOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  // If truly offline (navigator says so), bypass Clerk and use saved session
+  const offlineBypassClerk = mounted && (
+    navigatorOffline ||
+    (!isLoaded && (connDown || stallBypass)) ||
+    (connDown && probeSettled && probeOffline)
+  );
   const snapshot = offlineBypassClerk ? getSessionSnapshot() : null;
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";

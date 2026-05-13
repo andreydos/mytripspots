@@ -1,7 +1,8 @@
 // Bump SHELL cache only when precache list/strategy changes — not every deploy.
 const CACHE_NAME = "mytripspots-shell-v6";
 // Runtime: last good HTML + hashed Next chunks (URLs change each build → safe to cache by full URL).
-const RUNTIME_CACHE = "mytripspots-runtime-v2";
+const RUNTIME_CACHE = "mytripspots-runtime-v1778700003";
+const DOCUMENT_KEY = "mytripspots-root-doc";
 
 const SHELL_FILES = ["/manifest.json"];
 
@@ -76,18 +77,22 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigation: always prefer network with revalidation. Never cache the document — caching HTML
-  // caused stale shell text and old /_next/static chunk references after deploys.
+  // Navigation: prefer network, cache successful HTML for offline replay.
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request, { cache: "no-cache" })
-        .then((response) => response)
+        .then(async (response) => {
+          if (cacheableResponse(response)) {
+            const cache = await caches.open(RUNTIME_CACHE);
+            cache.put(event.request, response.clone());
+          }
+          return response;
+        })
         .catch(async () => {
           const cache = await caches.open(RUNTIME_CACHE);
           const hit = await cache.match(event.request);
           if (hit) return hit;
-          const scopeHit = await cache.match(new Request(`${self.registration.scope}`));
-          return scopeHit || offlineDocument();
+          return offlineDocument();
         })
     );
     return;
