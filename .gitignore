@@ -11,3 +11,6 @@ __pycache__
 .env.local
 .env.*.local
 .turbo
+
+# Cursor local debug logs (NDJSON)
+.cursor/*.log

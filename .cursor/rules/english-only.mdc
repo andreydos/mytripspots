@@ -1,0 +1,17 @@
+---
+description: All user-facing and developer-facing text must be in English only
+alwaysApply: true
+---
+
+# English-only text
+
+Until multilingual support is explicitly added, use **English only** for:
+
+- UI strings, labels, placeholders, button text, and toasts
+- Error messages, validation messages, and API response messages intended for humans
+- README, inline documentation in code, and commit/PR descriptions when you author them for this repo
+- **Code comments** (including `//`, `/* */`, docstrings, and JSX `{/* */}` comments)
+
+Do not use other natural languages in source, config comments, or generated copy. If you encounter existing non-English text while editing, prefer translating it to English as part of the same change when it is clearly user- or maintainer-facing.
+
+Technical identifiers (variable names, routes, locale keys) stay as conventional English or existing project naming; this rule is about human-readable prose and comments.

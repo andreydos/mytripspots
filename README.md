@@ -16,8 +16,11 @@ Monorepo with Next.js PWA frontend and FastAPI GraphQL backend.
    - `pnpm dev:web`
 3. API:
    - copy `apps/api/.env.example` to `apps/api/.env`
-   - `pip install -e ./apps/api`
-   - `cd apps/api && uvicorn main:app --reload --port 8000`
+   - use a **venv** (recommended; on Debian/Ubuntu system Python often blocks `pip install` without a venv):
+     - from repo root: `python3 -m venv .venv` then `source .venv/bin/activate`
+     - `pip install -e ./apps/api`
+   - run from `apps/api` (so `.env` is picked up): `uvicorn main:app --reload --port 8000`  
+     or without activating venv: `../.venv/bin/python -m uvicorn main:app --reload --port 8000`
 
 ## Migrations
 Apply SQL files in order:
@@ -34,6 +37,7 @@ Apply SQL files in order:
 - `DATABASE_URL`
 - `CLERK_JWKS_URL`
 - `CLERK_ISSUER`
+- `CORS_ALLOWED_ORIGINS` (required when `APP_ENV=production` — your Vercel / site origin(s), comma-separated)
 - `R2_ACCESS_KEY_ID`
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET`

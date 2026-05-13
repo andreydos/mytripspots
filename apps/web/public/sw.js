@@ -1,7 +1,21 @@
-// Bump only when you change precache contents/strategy and need to drop old cache entries — not every deploy.
-const CACHE_NAME = "mytripspots-shell-v3";
-// Do not precache "/": it embeds chunk hashes; a stale shell breaks every new Next.js deploy.
+// Bump SHELL cache only when precache list/strategy changes — not every deploy.
+const CACHE_NAME = "mytripspots-shell-v6";
+// Runtime: last good HTML + hashed Next chunks (URLs change each build → safe to cache by full URL).
+const RUNTIME_CACHE = "mytripspots-runtime-v2";
+
 const SHELL_FILES = ["/manifest.json"];
+
+function offlineResponse() {
+  return new Response("", { status: 503, statusText: "Network error", headers: { "Cache-Control": "no-store" } });
+}
+
+function offlineDocument() {
+  return new Response("<!DOCTYPE html><html><body>Offline</body></html>", {
+    status: 503,
+    statusText: "Offline",
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" }
+  });
+}
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -11,29 +25,78 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))).then(() =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME && k !== RUNTIME_CACHE).map((k) => caches.delete(k))).then(() =>
         self.clients.claim()
       )
     )
   );
 });
 
+function cacheableResponse(res) {
+  return res && res.ok && res.type === "basic";
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  // Next.js dev/prod bundles must not be served from cache — hashes change on rebuild.
-  if (url.pathname.startsWith("/_next/")) {
-    event.respondWith(fetch(event.request));
+  if (url.origin !== self.location.origin) return;
+
+  // Let the browser handle these directly (avoids synthetic 503 for icons when offline).
+  if (url.pathname === "/icon.svg" || url.pathname === "/favicon.ico") return;
+
+  // API: never use caches.match — a stale cached 200 for /api/ping breaks offline detection.
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }).catch(() => offlineResponse()));
     return;
   }
-  // HTML navigations: network-first so each deploy gets a fresh document (correct chunk URLs).
-  if (event.request.mode === "navigate") {
+
+  // Hashed Next assets: try cache, then network, then cache successful responses (offline replay after one online visit).
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      caches.open(RUNTIME_CACHE).then((cache) =>
+        cache.match(event.request).then((cached) => {
+          if (cached) return cached;
+          return fetch(event.request)
+            .then((response) => {
+              if (cacheableResponse(response)) {
+                cache.put(event.request, response.clone());
+              }
+              return response;
+            })
+            .catch(() => offlineResponse());
+        })
+      )
     );
     return;
   }
+
+  // Other /_next/* (HMR, dev manifests): network only — must still resolve to a Response for respondWith
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(event.request).catch(() => offlineResponse()));
+    return;
+  }
+
+  // Navigation: always prefer network with revalidation. Never cache the document — caching HTML
+  // caused stale shell text and old /_next/static chunk references after deploys.
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request, { cache: "no-cache" })
+        .then((response) => response)
+        .catch(async () => {
+          const cache = await caches.open(RUNTIME_CACHE);
+          const hit = await cache.match(event.request);
+          if (hit) return hit;
+          const scopeHit = await cache.match(new Request(`${self.registration.scope}`));
+          return scopeHit || offlineDocument();
+        })
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+      return fetch(event.request).catch(() => offlineResponse());
+    })
   );
 });
