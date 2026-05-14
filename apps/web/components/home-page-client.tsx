@@ -174,7 +174,7 @@ function GuestLanding() {
   );
 }
 
-function OfflineAccountPill({ displayName }: { displayName?: string }) {
+function OfflineAccountPill({ displayName, avatarUrl }: { displayName?: string; avatarUrl?: string }) {
   const label = displayName?.trim() || "Account";
   const initials = label
     .split(/\s+/)
@@ -185,12 +185,20 @@ function OfflineAccountPill({ displayName }: { displayName?: string }) {
 
   return (
     <div className="glass-pill flex items-center gap-3 rounded-full py-1.5 pl-2 pr-3">
-      <span
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary ring-2 ring-white/80"
-        aria-hidden
-      >
-        {initials || "?"}
-      </span>
+      {avatarUrl ? (
+        <img
+          src={avatarUrl}
+          alt={label}
+          className="size-10 shrink-0 rounded-full ring-2 ring-white/80 object-cover"
+        />
+      ) : (
+        <span
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary ring-2 ring-white/80"
+          aria-hidden
+        >
+          {initials || "?"}
+        </span>
+      )}
       <span className="max-w-[10rem] truncate text-xs font-medium text-muted-foreground">{label}</span>
     </div>
   );
@@ -209,8 +217,16 @@ export function HomePageClient() {
   isSignedInRef.current = Boolean(isSignedIn);
 
   useLayoutEffect(() => {
+    // Clean up old false sessions from localStorage to avoid conflicts
+    const stored = getSessionSnapshot();
+    if (stored?.signedIn === false) {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem("__mytripspts_session");
+      }
+    }
     setMounted(true);
   }, []);
+
 
   /** After a long offline stretch, Clerk can stay uninitialized until the Frontend API is reachable again. */
   useEffect(() => {
@@ -237,6 +253,7 @@ export function HomePageClient() {
     }
     if (!wasUnreachableRef.current) return;
     wasUnreachableRef.current = false;
+
     const c = clerk as unknown as { load?: () => Promise<void> };
     void c.load?.().catch(() => undefined);
   }, [mounted, clerk, isOnline, probeOffline]);
@@ -334,6 +351,9 @@ export function HomePageClient() {
     const connectedState = connectivityDown(isOnline, probeOffline);
     if (connectedState) return;
 
+    // Only save when user is actually signed in. Never save signedIn:false.
+    // If Clerk can't load a user (e.g., after reconnect), that's Clerk's issue, not ours.
+    // We keep the last known good session until Clerk proves user is signed in again.
     if (isSignedIn) {
       saveSessionSnapshot({
         signedIn: true,
@@ -342,31 +362,26 @@ export function HomePageClient() {
           user?.fullName ||
           user?.primaryEmailAddress?.emailAddress ||
           user?.username ||
-          undefined
+          undefined,
+        avatarUrl: user?.imageUrl || undefined
       });
-      return;
     }
-
-    // Do not clear the offline snapshot immediately on reconnect — Clerk can briefly report !isSignedIn
-    // while the session is still restoring, which would break the cached dashboard bridge.
-    const tid = window.setTimeout(() => {
-      if (!isSignedInRef.current) {
-        saveSessionSnapshot({ signedIn: false });
-      }
-    }, 2000);
-    return () => window.clearTimeout(tid);
   }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
   const connDown = connectivityDown(isOnline, probeOffline);
   const stallBypass = probeSettled && clerkStalled && !isLoaded;
   const navigatorOffline = typeof navigator !== "undefined" && !navigator.onLine;
+  const persistedSession = getSessionSnapshot();
+  // Clerk sometimes gets stuck at isLoaded:true, isSignedIn:false after reconnect.
+  // If we have a saved session but Clerk reports no user, use the cached session as fallback.
+  const clerkFailedRecovery = isLoaded && !isSignedIn && persistedSession?.signedIn === true;
   // If truly offline (navigator says so), bypass Clerk and use saved session
   const offlineBypassClerk = mounted && (
     navigatorOffline ||
     (!isLoaded && (connDown || stallBypass)) ||
-    (connDown && probeSettled && probeOffline)
+    (connDown && probeSettled && probeOffline) ||
+    clerkFailedRecovery
   );
-  const persistedSession = getSessionSnapshot();
   const cachedTripsExist = Boolean(getTripsCache()?.length);
   const snapshot = offlineBypassClerk ? persistedSession : null;
   // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
@@ -379,6 +394,7 @@ export function HomePageClient() {
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
   const effectiveOnline = isOnline && !probeOffline;
+
 
   const clerkAccountSlot = (
     <div className="glass-pill flex items-center gap-3 rounded-full py-1.5 pl-2 pr-3">
@@ -415,7 +431,7 @@ export function HomePageClient() {
         snapshot?.signedIn ? (
           <TravelDashboard
             isOnline={false}
-            accountSlot={<OfflineAccountPill displayName={snapshot.displayName} />}
+            accountSlot={<OfflineAccountPill displayName={snapshot.displayName} avatarUrl={snapshot.avatarUrl} />}
           />
         ) : (
           <GuestLanding />
@@ -423,7 +439,7 @@ export function HomePageClient() {
       ) : bridgeOnlineSignedInDashboard ? (
         <TravelDashboard
           isOnline={effectiveOnline}
-          accountSlot={<OfflineAccountPill displayName={persistedSession?.displayName} />}
+          accountSlot={<OfflineAccountPill displayName={persistedSession?.displayName} avatarUrl={persistedSession?.avatarUrl} />}
         />
       ) : (
         <>

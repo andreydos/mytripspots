@@ -1,7 +1,7 @@
 // Bump SHELL cache only when precache list/strategy changes — not every deploy.
 const CACHE_NAME = "mytripspots-shell-v6";
 // Runtime: last good HTML + hashed Next chunks (URLs change each build → safe to cache by full URL).
-const RUNTIME_CACHE = "mytripspots-runtime-v1778700004";
+const RUNTIME_CACHE = "mytripspots-runtime-v1778718648";
 const DOCUMENT_KEY = "mytripspots-root-doc";
 
 const SHELL_FILES = ["/manifest.json"];
@@ -65,7 +65,7 @@ self.addEventListener("fetch", (event) => {
             if (cacheableResponse(response)) {
               void caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, response.clone()));
             }
-            return response;
+            return response.clone();
           })
           .catch(() =>
             caches.open(RUNTIME_CACHE).then((cache) =>

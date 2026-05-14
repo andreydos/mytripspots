@@ -8,6 +8,7 @@ export type SessionSnapshot = {
   signedIn: boolean;
   userId?: string;
   displayName?: string;
+  avatarUrl?: string;
   savedAt: number;
 };
 

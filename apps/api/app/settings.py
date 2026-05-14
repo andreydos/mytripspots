@@ -1,13 +1,16 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_DEV_CORS_FALLBACK = (
-    "http://localhost:3000,http://127.0.0.1:3000,"
-    "http://localhost:3001,http://127.0.0.1:3001"
-)
+# Resolve `.env` next to `apps/api` so uvicorn works from repo root or `apps/api`.
+_API_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=str(_API_ROOT / ".env"),
+        env_file_encoding="utf-8",
+    )
 
     app_env: str = "development"
     api_host: str = "0.0.0.0"
@@ -36,14 +39,19 @@ class Settings(BaseSettings):
         raw = self.cors_allowed_origins.strip()
         if self.app_env.lower() in ("production", "prod"):
             return [o.strip() for o in raw.split(",") if o.strip()]
+        # In development, allow common localhost ports.
         from_env = [o.strip() for o in raw.split(",") if o.strip()]
-        dev = [o.strip() for o in _DEV_CORS_FALLBACK.split(",") if o.strip()]
+        dev = [
+            "http://localhost:3000", "http://127.0.0.1:3000",
+            "http://localhost:3001", "http://127.0.0.1:3001",
+            "http://localhost:3004", "http://127.0.0.1:3004",
+        ]
         if not from_env:
             return dev
-        # Merge: a production-style origin in .env should not drop local Next.js ports.
+        # Merge: keep dev fallback and add explicitly configured origins.
         seen: set[str] = set()
         merged: list[str] = []
-        for origin in from_env + dev:
+        for origin in dev + from_env:
             if origin and origin not in seen:
                 seen.add(origin)
                 merged.append(origin)

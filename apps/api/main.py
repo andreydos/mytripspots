@@ -11,20 +11,30 @@ from app.graphql.schema import schema
 from app.settings import settings
 
 
-_origins = settings.cors_origins_list()
-if settings.app_env.lower() in ("production", "prod") and not _origins:
-    raise RuntimeError(
-        "Set CORS_ALLOWED_ORIGINS when APP_ENV is production (comma-separated frontend origins, e.g. https://your-app.vercel.app)."
-    )
-
 app = FastAPI(title="MyTripSpots API", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+
+if settings.app_env.lower() in ("development", "dev"):
+    # In development, allow any localhost origin (any port).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    _origins = settings.cors_origins_list()
+    if not _origins:
+        raise RuntimeError(
+            "Set CORS_ALLOWED_ORIGINS when APP_ENV is production (comma-separated frontend origins, e.g. https://your-app.vercel.app)."
+        )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 graphql_app = GraphQLRouter(schema)
 app.include_router(graphql_app, prefix="/graphql")
 rate_windows: dict[str, deque[float]] = defaultdict(deque)

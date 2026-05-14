@@ -390,19 +390,21 @@ export function TravelDashboard({ accountSlot, isOnline }: TravelDashboardProps)
               </CardTitle>
               <CardDescription>{tripsCardSubtitle}</CardDescription>
             </div>
-            <Button
-              variant="secondary"
-              size="lg"
-              className="h-11 gap-2 rounded-full px-5 font-semibold shadow-md"
-              onClick={loadTrips}
-              aria-busy={isOnline && tripsRefreshing}
-            >
-              <RefreshCw
-                className={cn("size-4 shrink-0", isOnline && tripsRefreshing && "animate-spin")}
-                aria-hidden
-              />
-              {isOnline ? (tripsRefreshing ? "Syncing…" : "Refresh") : "From cache"}
-            </Button>
+            {isOnline && (
+              <Button
+                variant="secondary"
+                size="lg"
+                className="h-11 gap-2 rounded-full px-5 font-semibold shadow-md"
+                onClick={loadTrips}
+                aria-busy={tripsRefreshing}
+              >
+                <RefreshCw
+                  className={cn("size-4 shrink-0", tripsRefreshing && "animate-spin")}
+                  aria-hidden
+                />
+                {tripsRefreshing ? "Syncing…" : "Refresh"}
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="pt-2">
             <p className="text-sm text-muted-foreground">
