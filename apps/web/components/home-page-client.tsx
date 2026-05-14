@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   ClerkLoaded,
   ClerkLoading,
@@ -22,6 +22,7 @@ import {
   MapPin,
   WifiOff
 } from "lucide-react";
+import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
 import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
@@ -395,6 +396,10 @@ export function HomePageClient() {
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
   const effectiveOnline = isOnline && !probeOffline;
 
+  const connectivity = useMemo(
+    () => ({ networkOnline: effectiveOnline, connectivityDown: connDown }),
+    [effectiveOnline, connDown]
+  );
 
   const clerkAccountSlot = (
     <div className="glass-pill flex items-center gap-3 rounded-full py-1.5 pl-2 pr-3">
@@ -404,6 +409,7 @@ export function HomePageClient() {
   );
 
   return (
+    <ConnectivityProvider value={connectivity}>
     <div
       className={cn(
         "relative min-h-screen overflow-x-hidden pb-[max(1.5rem,env(safe-area-inset-bottom))]",
@@ -430,7 +436,6 @@ export function HomePageClient() {
       ) : offlineBypassClerk ? (
         snapshot?.signedIn ? (
           <TravelDashboard
-            isOnline={false}
             accountSlot={<OfflineAccountPill displayName={snapshot.displayName} avatarUrl={snapshot.avatarUrl} />}
           />
         ) : (
@@ -438,7 +443,6 @@ export function HomePageClient() {
         )
       ) : bridgeOnlineSignedInDashboard ? (
         <TravelDashboard
-          isOnline={effectiveOnline}
           accountSlot={<OfflineAccountPill displayName={persistedSession?.displayName} avatarUrl={persistedSession?.avatarUrl} />}
         />
       ) : (
@@ -452,11 +456,12 @@ export function HomePageClient() {
             </SignedOut>
 
             <SignedIn>
-              <TravelDashboard isOnline={effectiveOnline} accountSlot={clerkAccountSlot} />
+              <TravelDashboard accountSlot={clerkAccountSlot} />
             </SignedIn>
           </ClerkLoaded>
         </>
       )}
     </div>
+    </ConnectivityProvider>
   );
 }

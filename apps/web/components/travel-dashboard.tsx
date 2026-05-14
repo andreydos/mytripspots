@@ -25,6 +25,7 @@ import {
   type CachedPlace,
   type CachedTrip
 } from "@/lib/offline/app-cache";
+import { useConnectivity } from "@/lib/offline/connectivity-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -115,10 +116,10 @@ function filterPlacesLocal(
 
 export type TravelDashboardProps = {
   accountSlot: ReactNode;
-  isOnline: boolean;
 };
 
-export function TravelDashboard({ accountSlot, isOnline }: TravelDashboardProps) {
+export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
+  const { networkOnline: isOnline } = useConnectivity();
   const client = useApolloClient();
   const { getToken, isLoaded: clerkAuthLoaded } = useAuth();
   const [tripTitle, setTripTitle] = useState("");
