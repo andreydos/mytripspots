@@ -14,9 +14,11 @@ from app.settings import settings
 app = FastAPI(title="MyTripSpots API", version="0.1.0")
 
 if settings.app_env.lower() in ("development", "dev"):
-    # In development, allow any localhost origin (any port).
+    # Localhost: any port via regex. Also honor CORS_ALLOWED_ORIGINS (e.g. a prod
+    # frontend URL on Render if APP_ENV was left at the default "development").
     app.add_middleware(
         CORSMiddleware,
+        allow_origins=settings.cors_origins_list(),
         allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
         allow_credentials=True,
         allow_methods=["*"],
