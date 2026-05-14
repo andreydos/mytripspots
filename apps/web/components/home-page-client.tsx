@@ -8,6 +8,7 @@ import {
   SignedOut,
   SignInButton,
   useAuth,
+  useClerk,
   useUser,
   UserButton
 } from "@clerk/nextjs";
@@ -21,7 +22,7 @@ import {
   MapPin,
   WifiOff
 } from "lucide-react";
-import { getSessionSnapshot, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -203,11 +204,42 @@ export function HomePageClient() {
   const isOnline = useNavigatorOnline();
   const { isLoaded, isSignedIn, userId } = useAuth();
   const { user } = useUser();
-  const routingLogKeyRef = useRef<string>("");
+  const clerk = useClerk();
+  const isSignedInRef = useRef(false);
+  isSignedInRef.current = Boolean(isSignedIn);
 
   useLayoutEffect(() => {
     setMounted(true);
   }, []);
+
+  /** After a long offline stretch, Clerk can stay uninitialized until the Frontend API is reachable again. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const maybeLoad = () => {
+      const c = clerk as unknown as { load?: () => Promise<void> };
+      void c.load?.().catch(() => undefined);
+    };
+    const onOnline = () => {
+      maybeLoad();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [clerk]);
+
+  /** When connectivity becomes reachable again (after a real offline / probe-failed window), re-init Clerk. */
+  const wasUnreachableRef = useRef(false);
+  useEffect(() => {
+    if (!mounted) return;
+    const effective = isOnline && !probeOffline;
+    if (!effective) {
+      wasUnreachableRef.current = true;
+      return;
+    }
+    if (!wasUnreachableRef.current) return;
+    wasUnreachableRef.current = false;
+    const c = clerk as unknown as { load?: () => Promise<void> };
+    void c.load?.().catch(() => undefined);
+  }, [mounted, clerk, isOnline, probeOffline]);
 
   /** Offline detection: navigator may lie when service worker caches content, so always probe. */
   useEffect(() => {
@@ -295,24 +327,6 @@ export function HomePageClient() {
   }, [mounted, isLoaded, probeSettled, isOnline, probeOffline]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const snap = getSessionSnapshot();
-    const connDown = connectivityDown(isOnline, probeOffline);
-    const stallBypass = probeSettled && clerkStalled && !isLoaded;
-    const bypass = mounted && !isLoaded && (connDown || stallBypass);
-    const branch = !mounted
-      ? "pre-mount"
-      : bypass
-        ? snap?.signedIn
-          ? "bypass-dashboard"
-          : "bypass-guest"
-        : "clerk-tree";
-    if (routingLogKeyRef.current !== logKey) {
-      routingLogKeyRef.current = logKey;
-    }
-  }, [mounted, isOnline, isLoaded, isSignedIn, probeOffline, clerkStalled, probeSettled]);
-
-  useEffect(() => {
     if (typeof window === "undefined" || !isLoaded) return;
     // Triple-check offline: navigator takes priority (most reliable)
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
@@ -330,9 +344,17 @@ export function HomePageClient() {
           user?.username ||
           undefined
       });
-    } else {
-      saveSessionSnapshot({ signedIn: false });
+      return;
     }
+
+    // Do not clear the offline snapshot immediately on reconnect — Clerk can briefly report !isSignedIn
+    // while the session is still restoring, which would break the cached dashboard bridge.
+    const tid = window.setTimeout(() => {
+      if (!isSignedInRef.current) {
+        saveSessionSnapshot({ signedIn: false });
+      }
+    }, 2000);
+    return () => window.clearTimeout(tid);
   }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
   const connDown = connectivityDown(isOnline, probeOffline);
@@ -344,7 +366,16 @@ export function HomePageClient() {
     (!isLoaded && (connDown || stallBypass)) ||
     (connDown && probeSettled && probeOffline)
   );
-  const snapshot = offlineBypassClerk ? getSessionSnapshot() : null;
+  const persistedSession = getSessionSnapshot();
+  const cachedTripsExist = Boolean(getTripsCache()?.length);
+  const snapshot = offlineBypassClerk ? persistedSession : null;
+  // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
+  // dashboard with an auth spinner — keep showing trips until Clerk reports ready.
+  const bridgeOnlineSignedInDashboard =
+    mounted &&
+    !offlineBypassClerk &&
+    !isLoaded &&
+    (persistedSession?.signedIn === true || cachedTripsExist);
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
   const effectiveOnline = isOnline && !probeOffline;
@@ -389,6 +420,11 @@ export function HomePageClient() {
         ) : (
           <GuestLanding />
         )
+      ) : bridgeOnlineSignedInDashboard ? (
+        <TravelDashboard
+          isOnline={effectiveOnline}
+          accountSlot={<OfflineAccountPill displayName={persistedSession?.displayName} />}
+        />
       ) : (
         <>
           <ClerkLoading>

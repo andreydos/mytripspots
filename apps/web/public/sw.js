@@ -1,7 +1,7 @@
 // Bump SHELL cache only when precache list/strategy changes — not every deploy.
 const CACHE_NAME = "mytripspots-shell-v6";
 // Runtime: last good HTML + hashed Next chunks (URLs change each build → safe to cache by full URL).
-const RUNTIME_CACHE = "mytripspots-runtime-v1778700003";
+const RUNTIME_CACHE = "mytripspots-runtime-v1778700004";
 const DOCUMENT_KEY = "mytripspots-root-doc";
 
 const SHELL_FILES = ["/manifest.json"];
@@ -51,8 +51,30 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Hashed Next assets: try cache, then network, then cache successful responses (offline replay after one online visit).
+  // Hashed Next assets: cache-first in production (offline replay). On localhost, network-first so dev/HMR never
+  // serves a stale chunk for the same URL (otherwise old bundles + wrong source maps cause confusing errors).
   if (url.pathname.startsWith("/_next/static/")) {
+    const isLocalDev =
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "[::1]";
+    if (isLocalDev) {
+      event.respondWith(
+        fetch(event.request)
+          .then((response) => {
+            if (cacheableResponse(response)) {
+              void caches.open(RUNTIME_CACHE).then((cache) => cache.put(event.request, response.clone()));
+            }
+            return response;
+          })
+          .catch(() =>
+            caches.open(RUNTIME_CACHE).then((cache) =>
+              cache.match(event.request).then((cached) => cached || offlineResponse())
+            )
+          )
+      );
+      return;
+    }
     event.respondWith(
       caches.open(RUNTIME_CACHE).then((cache) =>
         cache.match(event.request).then((cached) => {
