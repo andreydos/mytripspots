@@ -9,8 +9,7 @@ import {
   SignInButton,
   useAuth,
   useClerk,
-  useUser,
-  UserButton
+  useUser
 } from "@clerk/nextjs";
 import {
   Camera,
@@ -171,36 +170,6 @@ function GuestLanding() {
           Secure sign-in with Clerk. After you sign in, your trip dashboard opens.
         </p>
       </div>
-    </div>
-  );
-}
-
-function OfflineAccountPill({ displayName, avatarUrl }: { displayName?: string; avatarUrl?: string }) {
-  const label = displayName?.trim() || "Account";
-  const initials = label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase())
-    .join("");
-
-  return (
-    <div className="glass-pill flex items-center gap-3 rounded-full py-1.5 pl-2 pr-3">
-      {avatarUrl ? (
-        <img
-          src={avatarUrl}
-          alt={label}
-          className="size-10 shrink-0 rounded-full ring-2 ring-white/80 object-cover"
-        />
-      ) : (
-        <span
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-semibold text-primary ring-2 ring-white/80"
-          aria-hidden
-        >
-          {initials || "?"}
-        </span>
-      )}
-      <span className="max-w-[10rem] truncate text-xs font-medium text-muted-foreground">{label}</span>
     </div>
   );
 }
@@ -401,13 +370,6 @@ export function HomePageClient() {
     [effectiveOnline, connDown]
   );
 
-  const clerkAccountSlot = (
-    <div className="glass-pill flex items-center gap-3 rounded-full py-1.5 pl-2 pr-3">
-      <UserButton appearance={{ elements: { avatarBox: "size-10 ring-2 ring-white/80 shadow-sm" } }} />
-      <span className="text-xs font-medium text-muted-foreground">Account</span>
-    </div>
-  );
-
   return (
     <ConnectivityProvider value={connectivity}>
     <div
@@ -436,14 +398,20 @@ export function HomePageClient() {
       ) : offlineBypassClerk ? (
         snapshot?.signedIn ? (
           <TravelDashboard
-            accountSlot={<OfflineAccountPill displayName={snapshot.displayName} avatarUrl={snapshot.avatarUrl} />}
+            accountOfflineProfile={{
+              displayName: snapshot.displayName,
+              avatarUrl: snapshot.avatarUrl
+            }}
           />
         ) : (
           <GuestLanding />
         )
       ) : bridgeOnlineSignedInDashboard ? (
         <TravelDashboard
-          accountSlot={<OfflineAccountPill displayName={persistedSession?.displayName} avatarUrl={persistedSession?.avatarUrl} />}
+          accountOfflineProfile={{
+            displayName: persistedSession?.displayName,
+            avatarUrl: persistedSession?.avatarUrl
+          }}
         />
       ) : (
         <>
@@ -456,7 +424,7 @@ export function HomePageClient() {
             </SignedOut>
 
             <SignedIn>
-              <TravelDashboard accountSlot={clerkAccountSlot} />
+              <TravelDashboard />
             </SignedIn>
           </ClerkLoaded>
         </>

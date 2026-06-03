@@ -1,0 +1,7 @@
+mutation CreateTrip($title: String!) {
+  createTrip(title: $title) {
+    id
+    title
+    visibility
+  }
+}

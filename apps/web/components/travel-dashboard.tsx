@@ -1,19 +1,29 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { gql, useApolloClient } from "@apollo/client";
-import { useAuth } from "@clerk/nextjs";
+import { useApolloClient } from "@apollo/client";
 import {
-  Compass,
+  CompleteUploadDocument,
+  CreatePlaceDocument,
+  CreateTripDocument,
+  InitUploadDocument,
+  PlacesDocument,
+  TripsDocument,
+  type InitUploadMutation,
+  type PlacesQuery,
+  type TripsQuery
+} from "@/graphql/generated/graphql";
+import { useAuth } from "@clerk/nextjs";
+import { AppPageHeader } from "@/components/app-page-header";
+import type { AppAccountOfflineProfile } from "@/components/app-account-slot";
+import {
   ImagePlus,
   MapPin,
   Plus,
   RefreshCw,
   Route,
   Search,
-  Sparkles,
   Upload
 } from "lucide-react";
 import { putDraft } from "@/lib/offline/drafts";
@@ -34,64 +44,6 @@ import { cn } from "@/lib/utils";
 
 const MapView = dynamic(() => import("@/components/map-view").then((m) => m.MapView), { ssr: false });
 
-const TRIPS_QUERY = gql`
-  query Trips {
-    myTrips {
-      id
-      title
-      visibility
-    }
-  }
-`;
-
-const CREATE_TRIP_MUTATION = gql`
-  mutation CreateTrip($title: String!) {
-    createTrip(title: $title) {
-      id
-      title
-      visibility
-    }
-  }
-`;
-
-const PLACES_QUERY = gql`
-  query Places($tripId: String!, $search: String) {
-    tripPlaces(tripId: $tripId, search: $search) {
-      id
-      title
-      lat
-      lng
-      notes
-    }
-  }
-`;
-
-const CREATE_PLACE_MUTATION = gql`
-  mutation CreatePlace($tripId: String!, $title: String!, $lat: Float!, $lng: Float!, $notes: String) {
-    createPlace(tripId: $tripId, title: $title, lat: $lat, lng: $lng, notes: $notes) {
-      id
-    }
-  }
-`;
-
-const INIT_UPLOAD_MUTATION = gql`
-  mutation InitUpload($mime: String!, $sizeBytes: Int!, $ext: String!) {
-    initUpload(mime: $mime, sizeBytes: $sizeBytes, ext: $ext) {
-      key
-      presignedUrl
-    }
-  }
-`;
-
-const COMPLETE_UPLOAD_MUTATION = gql`
-  mutation CompleteUpload($placeId: String!, $key: String!, $mime: String!, $width: Int, $height: Int) {
-    completeUpload(placeId: $placeId, key: $key, mime: $mime, width: $width, height: $height) {
-      id
-      r2Key
-    }
-  }
-`;
-
 const selectTriggerClass = cn(
   "flex h-11 w-full min-w-0 cursor-pointer appearance-none rounded-2xl border border-input bg-white/70 px-4 py-2 text-sm shadow-sm outline-none transition-colors",
   "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
@@ -101,10 +53,7 @@ const selectTriggerClass = cn(
 const fieldClass =
   "h-11 rounded-2xl border-input bg-white/80 text-base shadow-sm backdrop-blur-sm md:text-sm dark:bg-input/25";
 
-function filterPlacesLocal(
-  places: CachedPlace[],
-  q: string
-): Array<{ id: string; title: string; lat: number; lng: number; notes?: string }> {
+function filterPlacesLocal(places: CachedPlace[], q: string): CachedPlace[] {
   const needle = q.trim().toLowerCase();
   if (!needle) return places;
   return places.filter(
@@ -115,10 +64,10 @@ function filterPlacesLocal(
 }
 
 export type TravelDashboardProps = {
-  accountSlot: ReactNode;
+  accountOfflineProfile?: AppAccountOfflineProfile;
 };
 
-export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
+export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps = {}) {
   const { networkOnline: isOnline } = useConnectivity();
   const client = useApolloClient();
   const { getToken, isLoaded: clerkAuthLoaded } = useAuth();
@@ -166,8 +115,8 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
 
       setTripsRefreshing(true);
       try {
-        const res = await client.query<{ myTrips: CachedTrip[] }>({
-          query: TRIPS_QUERY,
+        const res = await client.query<TripsQuery>({
+          query: TripsDocument,
           fetchPolicy: "no-cache"
         });
         // Do not skip setTrips after the query: Strict Mode runs effect cleanup while this await
@@ -212,7 +161,7 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
   async function createTrip() {
     if (!isOnline || !tripTitle) return;
     await client.mutate({
-      mutation: CREATE_TRIP_MUTATION,
+      mutation: CreateTripDocument,
       variables: { title: tripTitle }
     });
     setTripTitle("");
@@ -227,13 +176,14 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
       setPlaces(filterPlacesLocal(list, search));
       return;
     }
-    const res = await client.query<{ tripPlaces: CachedPlace[] }>({
-      query: PLACES_QUERY,
+    const res = await client.query<PlacesQuery>({
+      query: PlacesDocument,
       variables: { tripId: selectedTrip, search: search || null },
       fetchPolicy: "no-cache"
     });
-    setPlaces(res.data.tripPlaces);
-    savePlacesCache(selectedTrip, res.data.tripPlaces);
+    const list = res.data?.tripPlaces ?? [];
+    setPlaces(list);
+    savePlacesCache(selectedTrip, list);
   }
 
   async function createPlace(formData: FormData) {
@@ -257,7 +207,7 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
     }
 
     await client.mutate({
-      mutation: CREATE_PLACE_MUTATION,
+      mutation: CreatePlaceDocument,
       variables: { tripId: selectedTrip, title, notes, lat, lng }
     });
     await loadPlaces();
@@ -272,8 +222,8 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
     setCompressedSizeBytes(compressed.size);
 
     const ext = "webp";
-    const init = await client.mutate<{ initUpload: { key: string; presignedUrl: string } }>({
-      mutation: INIT_UPLOAD_MUTATION,
+    const init = await client.mutate<InitUploadMutation>({
+      mutation: InitUploadDocument,
       variables: { mime: compressed.type, sizeBytes: compressed.size, ext }
     });
     const upload = init.data?.initUpload;
@@ -285,7 +235,7 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
       headers: { "Content-Type": compressed.type }
     });
     await client.mutate({
-      mutation: COMPLETE_UPLOAD_MUTATION,
+      mutation: CompleteUploadDocument,
       variables: {
         placeId: selectedPlaceId,
         key: upload.key,
@@ -358,26 +308,7 @@ export function TravelDashboard({ accountSlot }: TravelDashboardProps) {
 
   return (
     <main className="relative mx-auto max-w-3xl px-4 pt-6 md:max-w-5xl md:px-6 md:pt-10">
-      <header className="glass-panel mb-8 flex flex-col gap-4 rounded-3xl p-5 shadow-glass-lg md:flex-row md:items-center md:justify-between md:p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-md shadow-primary/25">
-            <Compass className="size-7" strokeWidth={1.75} />
-          </div>
-          <div>
-            <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-widest text-muted-foreground">
-              <Sparkles className="size-3.5" />
-              MyTripSpots
-            </p>
-            <h1 className="font-heading mt-1 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-              Map every trip. Treasure every spot.
-            </h1>
-            <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              Trips, places, and the map — polished for phone and desktop.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 md:justify-end">{accountSlot}</div>
-      </header>
+      <AppPageHeader offlineProfile={accountOfflineProfile} showSignInWhenSignedOut={false} />
       <div className="flex flex-col gap-6 md:gap-8">
         <Card className="rounded-3xl border-0 bg-card/90 shadow-glass ring-1 ring-foreground/5 backdrop-blur-md">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">

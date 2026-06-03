@@ -1,8 +1,10 @@
+import type { PlacesQuery, TripsQuery } from "@/graphql/generated/graphql";
+
 const SESSION_KEY = "mytripspots_offline_session";
 const TRIPS_KEY = "mytripspots_cached_trips";
 
-export type CachedTrip = { id: string; title: string; visibility: string };
-export type CachedPlace = { id: string; title: string; lat: number; lng: number; notes?: string };
+export type CachedTrip = TripsQuery["myTrips"][number];
+export type CachedPlace = PlacesQuery["tripPlaces"][number];
 
 export type SessionSnapshot = {
   signedIn: boolean;

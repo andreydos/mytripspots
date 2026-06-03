@@ -8,6 +8,19 @@ Monorepo with Next.js PWA frontend and FastAPI GraphQL backend.
 - `infra/sql` — migrations/seeds
 - `docs` — architecture and scope docs
 
+## GraphQL (web + API)
+
+- Operations live in `apps/web/graphql/**/*.graphql`.
+- Committed API schema: `apps/api/schema.graphql` (source of truth for codegen on Vercel).
+- Generated types and documents: `apps/web/graphql/generated/graphql.ts`.
+
+When you change the Strawberry schema or add operations:
+
+1. After API schema changes (API venv active): `pnpm schema:export` — refreshes `apps/api/schema.graphql`, then `pnpm codegen` (or one shot: `pnpm codegen:all`).
+2. `pnpm codegen` — regenerates TypeScript from the committed schema (also runs automatically before `pnpm --filter web build`; no Python required).
+
+Watch mode during frontend work: `pnpm --filter web codegen:watch`.
+
 ## Local Run
 1. Database: use your **Supabase** Postgres URL in `apps/api/.env` as `DATABASE_URL` (Session pooler or direct connection from the Supabase dashboard). Optionally, for a fully local Postgres instead, run `docker compose up -d` — default DB name in compose is `mytripspots`.
 2. Web:

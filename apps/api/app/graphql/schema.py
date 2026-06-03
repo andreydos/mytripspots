@@ -99,6 +99,17 @@ class Query:
             return [_place_to_type(r) for r in rows]
 
     @strawberry.field
+    def place(self, info: Info, id: str) -> PlaceType | None:
+        user = _require_user(info)
+        with SessionLocal() as session:
+            row = session.scalar(
+                select(Place).join(Trip).where(Place.id == id, Trip.owner_id == user.id)
+            )
+            if not row:
+                return None
+            return _place_to_type(row)
+
+    @strawberry.field
     def geocode(self, info: Info, query: str) -> list[GeocodeResultType]:
         _require_user(info)
         payload = geocode(query)

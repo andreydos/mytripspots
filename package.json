@@ -8,6 +8,9 @@
     "build": "pnpm --filter web build",
     "lint": "pnpm --filter web lint",
     "typecheck": "pnpm --filter web typecheck",
-    "format": "pnpm --filter web format"
+    "format": "pnpm --filter web format",
+    "schema:export": "python apps/api/scripts/export_graphql_schema.py",
+    "codegen": "pnpm --filter web codegen",
+    "codegen:all": "pnpm schema:export && pnpm --filter web codegen"
   }
 }

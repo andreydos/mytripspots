@@ -1,0 +1,11 @@
+mutation CreatePlace(
+  $tripId: String!
+  $title: String!
+  $lat: Float!
+  $lng: Float!
+  $notes: String
+) {
+  createPlace(tripId: $tripId, title: $title, lat: $lat, lng: $lng, notes: $notes) {
+    id
+  }
+}

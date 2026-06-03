@@ -1,0 +1,19 @@
+query Place($id: String!) {
+  place(id: $id) {
+    id
+    tripId
+    title
+    lat
+    lng
+    notes
+    visitedAt
+    createdAt
+    photos {
+      id
+      r2Key
+      mime
+      width
+      height
+    }
+  }
+}

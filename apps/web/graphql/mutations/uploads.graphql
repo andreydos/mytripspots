@@ -1,0 +1,19 @@
+mutation InitUpload($mime: String!, $sizeBytes: Int!, $ext: String!) {
+  initUpload(mime: $mime, sizeBytes: $sizeBytes, ext: $ext) {
+    key
+    presignedUrl
+  }
+}
+
+mutation CompleteUpload(
+  $placeId: String!
+  $key: String!
+  $mime: String!
+  $width: Int
+  $height: Int
+) {
+  completeUpload(placeId: $placeId, key: $key, mime: $mime, width: $width, height: $height) {
+    id
+    r2Key
+  }
+}

@@ -4,7 +4,10 @@ import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
+import Link from "next/link";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type PlacePin = {
   id: string;
@@ -40,7 +43,17 @@ export function MapView({ places }: { places: PlacePin[] }) {
       <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       {places.map((p) => (
         <Marker key={p.id} position={[p.lat, p.lng]} icon={defaultMarkerIcon}>
-          <Popup>{p.title}</Popup>
+          <Popup>
+            <div className="flex min-w-[9rem] flex-col gap-2">
+              <p className="font-medium leading-tight text-foreground">{p.title}</p>
+              <Link
+                href={`/places/${p.id}`}
+                className={cn(buttonVariants({ size: "sm" }), "w-full justify-center")}
+              >
+                Details
+              </Link>
+            </div>
+          </Popup>
         </Marker>
       ))}
     </MapContainer>

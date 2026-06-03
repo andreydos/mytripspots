@@ -1,0 +1,9 @@
+query Places($tripId: String!, $search: String) {
+  tripPlaces(tripId: $tripId, search: $search) {
+    id
+    title
+    lat
+    lng
+    notes
+  }
+}

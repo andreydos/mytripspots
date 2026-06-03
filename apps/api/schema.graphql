@@ -1,0 +1,67 @@
+﻿type GeocodeResultType {
+  displayName: String!
+  lat: Float!
+  lng: Float!
+}
+
+type Mutation {
+  createTrip(title: String!, description: String = null, visibility: String! = "private"): TripType!
+  createPlace(tripId: String!, title: String!, lat: Float!, lng: Float!, notes: String = null, visitedAtIso: String = null): PlaceType!
+  initUpload(mime: String!, sizeBytes: Int!, ext: String! = "jpg"): UploadInitType!
+  completeUpload(placeId: String!, key: String!, mime: String!, width: Int = null, height: Int = null, exifLat: Float = null, exifLng: Float = null, exifTakenAtIso: String = null): PlacePhotoType!
+  softDeletePhoto(photoId: String!): Boolean!
+}
+
+type PlacePhotoType {
+  id: String!
+  placeId: String!
+  r2Key: String!
+  mime: String!
+  width: Int
+  height: Int
+  exifLat: Float
+  exifLng: Float
+  exifTakenAt: String
+  createdAt: String!
+}
+
+type PlaceType {
+  id: String!
+  tripId: String!
+  lat: Float!
+  lng: Float!
+  title: String!
+  notes: String
+  visitedAt: String
+  createdAt: String!
+  photos: [PlacePhotoType!]!
+}
+
+type Query {
+  me: UserType!
+  myTrips: [TripType!]!
+  tripPlaces(tripId: String!, search: String = null): [PlaceType!]!
+  place(id: String!): PlaceType
+  geocode(query: String!): [GeocodeResultType!]!
+}
+
+type TripType {
+  id: String!
+  ownerId: String!
+  title: String!
+  description: String
+  visibility: String!
+  createdAt: String!
+}
+
+type UploadInitType {
+  key: String!
+  presignedUrl: String!
+}
+
+type UserType {
+  id: String!
+  clerkUserId: String!
+  email: String
+  displayName: String
+}
