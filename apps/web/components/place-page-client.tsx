@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useApolloClient } from "@apollo/client";
-import { useCallback, useEffect, useMemo, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -13,7 +13,8 @@ import {
   MapPin,
   Navigation,
   Route,
-  StickyNote
+  StickyNote,
+  type LucideIcon
 } from "lucide-react";
 import { PlaceDocument, type PlaceQuery } from "@/graphql/generated/graphql";
 import { formatCoord, formatWhen, shortId } from "@/lib/place-display";
@@ -36,7 +37,7 @@ function MetaItem({
   value,
   mono
 }: {
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  icon: LucideIcon;
   label: string;
   value: string;
   mono?: boolean;
