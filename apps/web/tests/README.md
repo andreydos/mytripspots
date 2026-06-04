@@ -19,7 +19,7 @@ pnpm test:e2e          # Playwright (starts dev server on :3001)
 pnpm --filter web test:e2e:ui
 ```
 
-E2E mocks GraphQL in the browser (no Clerk/API required for place page tests).
+E2E uses Clerk env from `.env.local` (local) or CI secrets; GraphQL responses are mocked in the browser.
 
 ## Adding a test
 

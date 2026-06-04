@@ -35,13 +35,11 @@ pnpm test:web
 
 ## Web E2E (Playwright)
 
+Requires the same Clerk env as the app (`apps/web/.env.local` locally; Repository secrets in CI).
+
 ```bash
 pnpm exec playwright install chromium   # first time only
 pnpm test:e2e
 ```
 
-Uses `http://127.0.0.1:3001` and mocks `/graphql` for place page scenarios.
-
-## Clerk / full stack E2E (later)
-
-Optional future job: real API + `@clerk/testing` tokens in GitHub secrets for signed-in flows.
+GraphQL is mocked in tests (`e2e/helpers/graphql-mock.ts`), so no live API is required. CI builds the app, then runs Playwright against `pnpm start` on port 3001.
