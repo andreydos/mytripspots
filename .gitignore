@@ -3,6 +3,11 @@ node_modules
 .next
 dist
 coverage
+test-results/
+playwright-report/
+playwright/.cache/
+htmlcov/
+.pytest_cache/
 .venv
 *.egg-info/
 __pycache__

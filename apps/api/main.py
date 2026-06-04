@@ -63,7 +63,7 @@ async def request_id_and_logging(request: Request, call_next):
 
 @app.middleware("http")
 async def rate_limiter(request: Request, call_next):
-    if request.method == "OPTIONS":
+    if request.method == "OPTIONS" or request.url.path in ("/health", "/ready"):
         return await call_next(request)
     ip = request.client.host if request.client else "unknown"
     key = f"{ip}:{request.url.path}"

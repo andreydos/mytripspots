@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
+    # Bearer test:<clerk_user_id> accepts JWT-free auth (tests/local only).
+    auth_testing_enabled: bool = False
+
     database_url: str
 
     clerk_jwks_url: str

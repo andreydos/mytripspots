@@ -31,12 +31,12 @@ const defaultMarkerIcon = L.icon({
   shadowSize: [41, 41]
 });
 
-export function MapView({ places }: { places: PlacePin[] }) {
+export function MapView({ places, zoom = 5 }: { places: PlacePin[]; zoom?: number }) {
   const center: [number, number] = places.length ? [places[0].lat, places[0].lng] : [51.505, -0.09];
   return (
     <MapContainer
       center={center}
-      zoom={5}
+      zoom={zoom}
       scrollWheelZoom={false}
       className="leaflet-container z-0 shadow-inner ring-1 ring-black/5"
     >

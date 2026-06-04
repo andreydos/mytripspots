@@ -84,7 +84,25 @@ def bootstrap_user_from_claims(claims: dict[str, Any]) -> RequestUser:
         )
 
 
+def _authenticate_test_token(token: str) -> RequestUser | None:
+    if not settings.auth_testing_enabled or not token.startswith("test:"):
+        return None
+    clerk_user_id = token.removeprefix("test:").strip()
+    if not clerk_user_id:
+        raise PermissionError("Invalid test token")
+    return bootstrap_user_from_claims(
+        {
+            "sub": clerk_user_id,
+            "email": f"{clerk_user_id}@test.local",
+            "name": "Test User",
+        }
+    )
+
+
 def authenticate(auth_header: str | None) -> RequestUser:
     token = _extract_bearer_token(auth_header)
+    test_user = _authenticate_test_token(token)
+    if test_user is not None:
+        return test_user
     claims = _decode_clerk_token(token)
     return bootstrap_user_from_claims(claims)

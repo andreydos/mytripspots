@@ -21,6 +21,14 @@ When you change the Strawberry schema or add operations:
 
 Watch mode during frontend work: `pnpm --filter web codegen:watch`.
 
+## Testing
+
+See [docs/testing.md](docs/testing.md). Quick commands:
+
+- `pnpm test:web` — Vitest (unit + component)
+- `pnpm test:e2e` — Playwright
+- `pnpm test:api` — pytest (Postgres + seed required)
+
 ## Local Run
 1. Database: use your **Supabase** Postgres URL in `apps/api/.env` as `DATABASE_URL` (Session pooler or direct connection from the Supabase dashboard). Optionally, for a fully local Postgres instead, run `docker compose up -d` — default DB name in compose is `mytripspots`.
 2. Web:
