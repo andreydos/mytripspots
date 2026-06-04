@@ -24,8 +24,16 @@ def client() -> TestClient:
     return TestClient(app)
 
 
-def graphql(client: TestClient, query: str, variables: dict | None = None, headers: dict | None = None):
+def graphql(
+    client: TestClient,
+    query: str,
+    variables: dict | None = None,
+    *,
+    authenticated: bool = True,
+):
+    """Post a GraphQL operation. Use authenticated=False to omit Authorization."""
     payload: dict = {"query": query}
     if variables is not None:
         payload["variables"] = variables
-    return client.post("/graphql", json=payload, headers=headers or TEST_AUTH_HEADER)
+    req_headers = TEST_AUTH_HEADER if authenticated else {}
+    return client.post("/graphql", json=payload, headers=req_headers)

@@ -1,4 +1,4 @@
-from tests.conftest import SEED_PLACE_ID, TEST_AUTH_HEADER, graphql
+from tests.conftest import SEED_PLACE_ID, graphql
 
 
 PLACE_QUERY = """
@@ -43,7 +43,7 @@ def test_place_requires_authorization(client):
         client,
         PLACE_QUERY,
         {"id": SEED_PLACE_ID},
-        headers={},
+        authenticated=False,
     )
     assert response.status_code == 200
     body = response.json()
