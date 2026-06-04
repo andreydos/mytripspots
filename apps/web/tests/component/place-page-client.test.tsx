@@ -13,7 +13,7 @@ describe("PlacePageClient", () => {
     expect(await screen.findByText("London")).toBeInTheDocument();
     expect(screen.getByText("Seed place")).toBeInTheDocument();
     expect(screen.getByText("Back to dashboard")).toBeInTheDocument();
-    expect(screen.getByTestId("map-view-stub")).toBeInTheDocument();
+    expect(await screen.findByTestId("map-view-stub")).toBeInTheDocument();
     expect(screen.getByText("Notes")).toBeInTheDocument();
     expect(screen.getByText("Photos")).toBeInTheDocument();
   });
