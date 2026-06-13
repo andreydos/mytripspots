@@ -84,3 +84,8 @@ Recommended media settings:
 - root directory: `apps/api`
 - apply `apps/api/railway.json`
 - start command handled by config
+
+### VPS (Contabo / self-host)
+- See [docs/vps-deploy.md](docs/vps-deploy.md) — shared Postgres in `/opt/infra`, GHCR images, Caddy reverse proxy
+- Release: push tag `prod-N` → GitHub Actions builds `ghcr.io/andreydos/mytripspots-{web,api}:prod-N`
+- VPS compose template: [`deploy/vps/docker-compose.yml`](deploy/vps/docker-compose.yml)
