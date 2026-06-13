@@ -72,13 +72,13 @@ Recommended media settings:
 ## Deploy
 ### Vercel (web)
 - **Project → Settings → General**
-  - **Root Directory**: `apps/web` (обязательно; не корень монорепы)
-  - **Framework Preset**: **Next.js** (авто или вручную)
-  - **Output Directory**: оставь **пустым** (для Next.js Vercel сам использует `.next`). Если там стоит `public` — сотри: иначе будет ошибка *No Output Directory named "public"*.
-- **Build & Development**: команды можно не переопределять — берутся из [`apps/web/vercel.json`](apps/web/vercel.json) (`install` из корня репо + `pnpm --filter web build`).
-- Закоммить [`pnpm-lock.yaml`](pnpm-lock.yaml) в корне репозитория.
+  - **Root Directory**: `apps/web` (required; not the monorepo root)
+  - **Framework Preset**: **Next.js** (auto-detected or set manually)
+  - **Output Directory**: leave **empty** (for Next.js, Vercel uses `.next` automatically). If it is set to `public`, clear it — otherwise you will get *No Output Directory named "public"*.
+- **Build & Development**: you can leave commands at defaults — they come from [`apps/web/vercel.json`](apps/web/vercel.json) (`install` from the repo root + `pnpm --filter web build`).
+- Commit [`pnpm-lock.yaml`](pnpm-lock.yaml) at the repository root.
 
-**CLI:** запускай из каталога приложения, чтобы подтянулся Next-проект: `cd apps/web && npx vercel` (или после линка с корректным Root Directory в дашборде).
+**CLI:** run from the app directory so the Next.js project is picked up: `cd apps/web && npx vercel` (or after linking with the correct Root Directory in the dashboard).
 
 ### Railway (api)
 - root directory: `apps/api`
