@@ -25,7 +25,10 @@ def _extract_bearer_token(auth_header: str | None) -> str:
         raise PermissionError("Missing Authorization header")
     if not auth_header.lower().startswith("bearer "):
         raise PermissionError("Invalid auth scheme")
-    return auth_header.split(" ", 1)[1].strip()
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        raise PermissionError("Missing bearer token")
+    return token
 
 
 def _decode_clerk_token(token: str) -> dict[str, Any]:

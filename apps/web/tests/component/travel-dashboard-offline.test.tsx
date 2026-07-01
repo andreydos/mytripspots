@@ -13,7 +13,11 @@ vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
     getToken: async () => "test-token"
-  })
+  }),
+  SignedIn: ({ children }: { children: React.ReactNode }) => children,
+  SignedOut: () => null,
+  SignInButton: () => null,
+  UserButton: () => null
 }));
 
 describe("TravelDashboard offline", () => {
