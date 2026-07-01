@@ -15,7 +15,14 @@ spotstogo.online, www.spotstogo.online {
 	redir /mts / 301
 	redir /mts/ / 301
 
-	reverse_proxy 127.0.0.1:3001
+	# API on same domain (works without api.* DNS)
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		reverse_proxy 127.0.0.1:3001
+	}
 }
 
 api.spotstogo.online {
