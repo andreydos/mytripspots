@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomePageClient } from "@/components/home-page-client";
 import { saveSessionSnapshot, saveTripsCache } from "@/lib/offline/app-cache";
 import { SEED_TRIP_ID } from "../fixtures/place";
-import { render } from "@testing-library/react";
+import { renderWithProviders } from "../utils/render-with-providers";
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
@@ -15,9 +15,10 @@ vi.mock("@clerk/nextjs", () => ({
   useClerk: () => ({}),
   ClerkLoaded: ({ children }: { children: React.ReactNode }) => children,
   ClerkLoading: () => null,
-  SignedIn: () => null,
+  SignedIn: ({ children }: { children: React.ReactNode }) => children,
   SignedOut: () => null,
-  SignInButton: () => null
+  SignInButton: () => null,
+  UserButton: () => null
 }));
 
 describe("HomePageClient offline", () => {
@@ -32,7 +33,7 @@ describe("HomePageClient offline", () => {
   });
 
   it("shows offline banner and dashboard from saved session when navigator is offline", async () => {
-    render(<HomePageClient />);
+    renderWithProviders(<HomePageClient />);
 
     expect(
       await screen.findByText(/No network — offline mode/)

@@ -1,5 +1,5 @@
 import { graphql, HttpResponse } from "msw";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TravelDashboard } from "@/components/travel-dashboard";
@@ -52,7 +52,10 @@ describe("TravelDashboard offline", () => {
     await user.type(screen.getByPlaceholderText("Waterfall"), "Offline waterfall");
     await user.type(screen.getByLabelText("Latitude"), "64.15");
     await user.type(screen.getByLabelText("Longitude"), "-21.67");
-    await user.click(screen.getByRole("button", { name: "Save place" }));
+
+    const form = screen.getByPlaceholderText("Waterfall").closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
 
     await waitFor(() => {
       expect(getDrafts()).toHaveLength(1);

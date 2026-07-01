@@ -443,7 +443,13 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
             <CardDescription>Drop a pin with coordinates — fields stack on small screens.</CardDescription>
           </CardHeader>
           <CardContent>
-            <form action={createPlace} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <form
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void createPlace(new FormData(event.currentTarget));
+              }}
+            >
               <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                 <Label htmlFor="place-title">Title</Label>
                 <Input id="place-title" name="title" placeholder="Waterfall" required className={fieldClass} />
