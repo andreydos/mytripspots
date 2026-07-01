@@ -12,8 +12,11 @@ os.environ.setdefault("CLERK_JWKS_URL", "https://placeholder.clerk.example/.well
 os.environ.setdefault("CLERK_ISSUER", "https://placeholder.clerk.example")
 os.environ.setdefault("APP_ENV", "development")
 
+SEED_USER_ID = "11111111-1111-1111-1111-111111111111"
+SEED_TRIP_ID = "22222222-2222-2222-2222-222222222222"
 SEED_PLACE_ID = "33333333-3333-3333-3333-333333333333"
 SEED_CLERK_USER = "user_demo_1"
+UNKNOWN_ID = "00000000-0000-0000-0000-000000000099"
 TEST_AUTH_HEADER = {"Authorization": f"Bearer test:{SEED_CLERK_USER}"}
 
 
