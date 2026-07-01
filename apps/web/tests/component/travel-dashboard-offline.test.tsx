@@ -49,7 +49,7 @@ describe("TravelDashboard offline", () => {
       expect(screen.getByRole("button", { name: "Save place" })).not.toBeDisabled();
     });
 
-    await user.type(screen.getByLabelText("Title"), "Offline waterfall");
+    await user.type(screen.getByPlaceholderText("Waterfall"), "Offline waterfall");
     await user.type(screen.getByLabelText("Latitude"), "64.15");
     await user.type(screen.getByLabelText("Longitude"), "-21.67");
     await user.click(screen.getByRole("button", { name: "Save place" }));
