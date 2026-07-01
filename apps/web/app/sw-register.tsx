@@ -19,6 +19,14 @@ export function ServiceWorkerRegister() {
       });
       return;
     }
+    void navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const r of regs) {
+        // Drop legacy service workers registered under the old /mts base path.
+        if (new URL(r.scope).pathname.startsWith("/mts")) {
+          void r.unregister();
+        }
+      }
+    });
     void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
   }, []);
   return null;

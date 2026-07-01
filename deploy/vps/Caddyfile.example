@@ -1,0 +1,28 @@
+# Example Caddy config for spotstogo.online (copy snippets into /opt/infra/Caddyfile).
+#
+# DNS:
+#   A  @              → 161.97.74.213
+#   A  www            → 161.97.74.213
+#   A  api            → 161.97.74.213
+#
+# Apply:
+#   sudo cp /opt/infra/Caddyfile /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl restart caddy
+
+spotstogo.online, www.spotstogo.online {
+	# Legacy bookmarks from the /mts path-routing phase
+	redir /mts / 301
+	redir /mts/ / 301
+
+	reverse_proxy 127.0.0.1:3001
+}
+
+api.spotstogo.online {
+	reverse_proxy 127.0.0.1:8000
+}
+
+# IP-only access (e.g. mwacademy) — no MyTripSpots /mts routes here.
+# http://161.97.74.213 {
+# 	reverse_proxy 127.0.0.1:3000
+# }

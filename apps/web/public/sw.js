@@ -1,5 +1,5 @@
 // Bump SHELL cache only when precache list/strategy changes — not every deploy.
-const CACHE_NAME = "mytripspots-shell-v6";
+const CACHE_NAME = "mytripspots-shell-v7";
 // Runtime: last good HTML + hashed Next chunks (URLs change each build → safe to cache by full URL).
 const RUNTIME_CACHE = "mytripspots-runtime-v1778718648";
 const DOCUMENT_KEY = "mytripspots-root-doc";
