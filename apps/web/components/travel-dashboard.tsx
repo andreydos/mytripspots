@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useApolloClient } from "@apollo/client";
 import {
@@ -26,7 +26,7 @@ import {
   Search,
   Upload
 } from "lucide-react";
-import { putDraft } from "@/lib/offline/drafts";
+import { getDrafts, putDraft, removeDraft } from "@/lib/offline/drafts";
 import {
   getPlacesCache,
   getTripsCache,
@@ -36,6 +36,7 @@ import {
   type CachedTrip
 } from "@/lib/offline/app-cache";
 import { useConnectivity } from "@/lib/offline/connectivity-context";
+import { syncDrafts } from "@/lib/offline/sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
   const [places, setPlaces] = useState<CachedPlace[]>([]);
   const [trips, setTrips] = useState<CachedTrip[]>([]);
   const [tripsRefreshing, setTripsRefreshing] = useState(false);
+  const draftSyncInFlight = useRef(false);
 
   const sortedPlaces = useMemo(() => places.slice().sort((a, b) => a.title.localeCompare(b.title)), [places]);
 
@@ -185,6 +187,50 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     setPlaces(list);
     savePlacesCache(selectedTrip, list);
   }
+
+  const syncOfflineDrafts = useCallback(async () => {
+    if (!isOnline || !clerkAuthLoaded || draftSyncInFlight.current) return;
+
+    const token = await getToken();
+    if (!token) return;
+
+    if (getDrafts().length === 0) return;
+
+    draftSyncInFlight.current = true;
+    try {
+      const syncedTripIds = new Set<string>();
+      await syncDrafts(async (localId) => {
+        const draft = getDrafts().find((d) => d.localId === localId);
+        if (!draft) return;
+        try {
+          await client.mutate({
+            mutation: CreatePlaceDocument,
+            variables: {
+              tripId: draft.tripId,
+              title: draft.title,
+              notes: draft.notes || null,
+              lat: draft.lat,
+              lng: draft.lng
+            }
+          });
+          removeDraft(localId);
+          syncedTripIds.add(draft.tripId);
+        } catch {
+          /* keep draft for a later retry */
+        }
+      });
+      if (syncedTripIds.has(selectedTrip)) {
+        await loadPlaces();
+      }
+    } finally {
+      draftSyncInFlight.current = false;
+    }
+  }, [client, clerkAuthLoaded, getToken, isOnline, selectedTrip]);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    void syncOfflineDrafts();
+  }, [isOnline, clerkAuthLoaded, syncOfflineDrafts]);
 
   async function createPlace(formData: FormData) {
     const title = String(formData.get("title") || "");

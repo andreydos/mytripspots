@@ -6,6 +6,7 @@ import httpx
 import jwt
 from jwt import PyJWKClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.db.models import User
 from app.db.session import SessionLocal
@@ -77,8 +78,20 @@ def bootstrap_user_from_claims(claims: dict[str, Any]) -> RequestUser:
             last_seen_at=datetime.now(timezone.utc),
         )
         session.add(created)
-        session.commit()
-        session.refresh(created)
+        try:
+            session.commit()
+            session.refresh(created)
+        except IntegrityError:
+            session.rollback()
+            raced = session.scalar(select(User).where(User.clerk_user_id == clerk_user_id))
+            if not raced:
+                raise
+            return RequestUser(
+                id=str(raced.id),
+                clerk_user_id=raced.clerk_user_id,
+                email=raced.email,
+                display_name=raced.display_name,
+            )
         return RequestUser(
             id=str(created.id),
             clerk_user_id=created.clerk_user_id,
