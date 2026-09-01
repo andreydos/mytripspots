@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  clearSessionSnapshot,
   getPlacesCache,
   getSessionSnapshot,
   getTripsCache,
@@ -36,6 +37,12 @@ describe("app-cache", () => {
     expect(snapshot?.signedIn).toBe(true);
     expect(snapshot?.displayName).toBe("Demo User");
     expect(typeof snapshot?.savedAt).toBe("number");
+  });
+
+  it("clears session snapshot", () => {
+    saveSessionSnapshot({ signedIn: true, displayName: "Demo User" });
+    clearSessionSnapshot();
+    expect(getSessionSnapshot()).toBeNull();
   });
 
   it("returns null when trips cache is not an array", () => {

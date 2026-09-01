@@ -22,7 +22,12 @@ import {
   WifiOff
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
-import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import {
+  clearSessionSnapshot,
+  getSessionSnapshot,
+  getTripsCache,
+  saveSessionSnapshot
+} from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -185,6 +190,10 @@ export function HomePageClient() {
   const clerk = useClerk();
   const isSignedInRef = useRef(false);
   isSignedInRef.current = Boolean(isSignedIn);
+  /** Allow cached-session recovery only after a real connectivity outage (not after sign-out). */
+  const sessionRecoveryAllowedRef = useRef(false);
+  const wasSignedInRef = useRef(false);
+  const connDown = connectivityDown(isOnline, probeOffline);
 
   useLayoutEffect(() => {
     // Clean up old false sessions from localStorage to avoid conflicts
@@ -300,6 +309,41 @@ export function HomePageClient() {
   }, [isLoaded]);
 
   useEffect(() => {
+    if (connDown) {
+      sessionRecoveryAllowedRef.current = true;
+    }
+  }, [connDown]);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      sessionRecoveryAllowedRef.current = false;
+    }
+  }, [isLoaded, isSignedIn]);
+
+  useEffect(() => {
+    const c = clerk as unknown as {
+      addListener?: (cb: (event: { type: string }) => void) => (() => void) | void;
+    };
+    const unsubscribe = c.addListener?.((event) => {
+      if (event.type === "signOut") {
+        sessionRecoveryAllowedRef.current = false;
+        clearSessionSnapshot();
+      }
+    });
+    return () => {
+      unsubscribe?.();
+    };
+  }, [clerk]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (wasSignedInRef.current && !isSignedIn && !connDown && !sessionRecoveryAllowedRef.current) {
+      clearSessionSnapshot();
+    }
+    wasSignedInRef.current = Boolean(isSignedIn);
+  }, [isLoaded, isSignedIn, connDown]);
+
+  useEffect(() => {
     if (!mounted || isLoaded) return;
     const conn = connectivityDown(isOnline, probeOffline);
     if (conn) {
@@ -338,13 +382,16 @@ export function HomePageClient() {
     }
   }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
-  const connDown = connectivityDown(isOnline, probeOffline);
   const stallBypass = probeSettled && clerkStalled && !isLoaded;
   const navigatorOffline = typeof navigator !== "undefined" && !navigator.onLine;
   const persistedSession = getSessionSnapshot();
   // Clerk sometimes gets stuck at isLoaded:true, isSignedIn:false after reconnect.
   // If we have a saved session but Clerk reports no user, use the cached session as fallback.
-  const clerkFailedRecovery = isLoaded && !isSignedIn && persistedSession?.signedIn === true;
+  const clerkFailedRecovery =
+    isLoaded &&
+    !isSignedIn &&
+    persistedSession?.signedIn === true &&
+    sessionRecoveryAllowedRef.current;
   // If truly offline (navigator says so), bypass Clerk and use saved session
   const offlineBypassClerk = mounted && (
     navigatorOffline ||
