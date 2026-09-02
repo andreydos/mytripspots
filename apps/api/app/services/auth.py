@@ -55,9 +55,13 @@ def bootstrap_user_from_claims(claims: dict[str, Any]) -> RequestUser:
     with SessionLocal() as session:
         existing = session.scalar(select(User).where(User.clerk_user_id == clerk_user_id))
         if existing:
-            existing.email = primary_email
-            existing.display_name = display_name
-            existing.avatar_url = avatar_url
+            # Clerk session JWTs often omit profile claims; do not wipe stored values.
+            if primary_email is not None:
+                existing.email = primary_email
+            if display_name is not None:
+                existing.display_name = display_name
+            if avatar_url is not None:
+                existing.avatar_url = avatar_url
             existing.last_seen_at = datetime.now(timezone.utc)
             session.add(existing)
             session.commit()

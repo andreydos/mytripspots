@@ -95,6 +95,25 @@ def test_complete_upload_rejects_mime_mismatch(mock_head, client):
     mock_head.assert_called_once_with(key)
 
 
+@patch(
+    "app.graphql.schema.head_object",
+    return_value={"ContentType": "image/webp", "ContentLength": 5 * 1024 * 1024},
+)
+def test_complete_upload_rejects_oversized_object(mock_head, client, monkeypatch):
+    monkeypatch.setattr("app.services.storage.settings.upload_max_mb", 4)
+    key = f"user/{SEED_USER_ID}/oversized.webp"
+    response = graphql(
+        client,
+        COMPLETE_UPLOAD_MUTATION,
+        {"placeId": SEED_PLACE_ID, "key": key, "mime": "image/webp"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("errors")
+    assert any("exceeds 4 MB" in err.get("message", "") for err in body["errors"])
+    mock_head.assert_called_once_with(key)
+
+
 @patch("app.graphql.schema.head_object", return_value={"ContentType": "image/webp"})
 def test_complete_upload_rejects_foreign_place(mock_head, client):
     key = f"user/{SEED_USER_ID}/orphan.webp"
