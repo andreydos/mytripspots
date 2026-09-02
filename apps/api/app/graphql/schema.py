@@ -16,7 +16,13 @@ from app.graphql.types import (
 )
 from app.services.auth import RequestUser, authenticate
 from app.services.geocoding import geocode
-from app.services.storage import create_presigned_put_url, generate_owner_key, head_object, validate_upload_request
+from app.services.storage import (
+    create_presigned_put_url,
+    generate_owner_key,
+    head_object,
+    validate_upload_request,
+    validate_uploaded_object,
+)
 
 
 def _require_user(info: Info) -> RequestUser:
@@ -183,9 +189,7 @@ class Mutation:
         if not key.startswith(f"user/{user.id}/"):
             raise PermissionError("Invalid owner key prefix")
         object_meta = head_object(key)
-        content_type = object_meta.get("ContentType")
-        if content_type and content_type != mime:
-            raise ValueError("Mime mismatch")
+        validate_uploaded_object(object_meta, mime)
         exif_taken_at = datetime.fromisoformat(exif_taken_at_iso) if exif_taken_at_iso else None
 
         with SessionLocal() as session:

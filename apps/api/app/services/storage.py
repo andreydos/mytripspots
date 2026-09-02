@@ -27,6 +27,23 @@ def validate_upload_request(mime: str, size_bytes: int) -> None:
         raise ValueError(f"File exceeds {settings.upload_max_mb} MB limit")
 
 
+def validate_uploaded_object(object_meta: dict, mime: str) -> None:
+    if mime not in ALLOWED_MIME_TYPES:
+        raise ValueError("Unsupported mime type")
+
+    content_length = object_meta.get("ContentLength")
+    max_bytes = settings.upload_max_mb * 1024 * 1024
+    if content_length is not None and content_length > max_bytes:
+        raise ValueError(f"File exceeds {settings.upload_max_mb} MB limit")
+
+    content_type = object_meta.get("ContentType")
+    if content_type:
+        if content_type not in ALLOWED_MIME_TYPES:
+            raise ValueError("Unsupported mime type")
+        if content_type != mime:
+            raise ValueError("Mime mismatch")
+
+
 def generate_owner_key(owner_id: str, ext: str) -> str:
     return f"user/{owner_id}/{uuid4()}.{ext}"
 
