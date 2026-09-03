@@ -63,14 +63,22 @@ function filterPlacesLocal(places: CachedPlace[], q: string): CachedPlace[] {
   );
 }
 
+function pickTripId(trips: CachedTrip[], previous: string): string {
+  if (previous && trips.some((trip) => trip.id === previous)) return previous;
+  return trips[0]?.id || "";
+}
+
 export type TravelDashboardProps = {
   accountOfflineProfile?: AppAccountOfflineProfile;
+  /** User id for offline cache reads when Clerk is unavailable. */
+  cacheUserId?: string;
 };
 
-export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps = {}) {
+export function TravelDashboard({ accountOfflineProfile, cacheUserId }: TravelDashboardProps = {}) {
   const { networkOnline: isOnline } = useConnectivity();
   const client = useApolloClient();
-  const { getToken, isLoaded: clerkAuthLoaded } = useAuth();
+  const { getToken, isLoaded: clerkAuthLoaded, userId: clerkUserId } = useAuth();
+  const cacheUserIdResolved = clerkUserId ?? cacheUserId ?? "";
   const [tripTitle, setTripTitle] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -87,20 +95,21 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
 
   /** Show last-saved trips from localStorage immediately (online or offline). */
   useEffect(() => {
-    const cached = getTripsCache();
+    if (!cacheUserIdResolved) return;
+    const cached = getTripsCache(cacheUserIdResolved);
     if (!cached?.length) return;
     setTrips((prev) => (prev.length ? prev : cached));
-    setSelectedTrip((prev) => prev || cached[0].id);
-  }, []);
+    setSelectedTrip((prev) => pickTripId(cached, prev));
+  }, [cacheUserIdResolved]);
 
   /** If we go offline with an empty list, fall back to cache (e.g. failed prior fetch). */
   useEffect(() => {
-    if (isOnline) return;
-    const cached = getTripsCache();
+    if (isOnline || !cacheUserIdResolved) return;
+    const cached = getTripsCache(cacheUserIdResolved);
     if (!cached?.length) return;
     setTrips((prev) => (prev.length ? prev : cached));
-    setSelectedTrip((prev) => prev || cached[0].id);
-  }, [isOnline]);
+    setSelectedTrip((prev) => pickTripId(cached, prev));
+  }, [isOnline, cacheUserIdResolved]);
 
   const refreshTripsFromServer = useCallback(
     async (opts?: { isCancelled?: () => boolean }) => {
@@ -125,15 +134,17 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         const list = res.data?.myTrips ?? [];
 
         setTrips(list);
-        saveTripsCache(list);
-        setSelectedTrip((prev) => prev || list[0]?.id || "");
+        if (clerkUserId) {
+          saveTripsCache(clerkUserId, list);
+        }
+        setSelectedTrip((prev) => pickTripId(list, prev));
       } catch {
         /* keep cached / in-memory list */
       } finally {
         setTripsRefreshing(false);
       }
     },
-    [client, clerkAuthLoaded, getToken]
+    [client, clerkAuthLoaded, clerkUserId, getToken]
   );
 
   useEffect(() => {
@@ -148,10 +159,11 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
 
   async function loadTrips() {
     if (!isOnline) {
-      const cached = getTripsCache();
+      if (!cacheUserIdResolved) return;
+      const cached = getTripsCache(cacheUserIdResolved);
       if (cached?.length) {
         setTrips(cached);
-        setSelectedTrip((prev) => prev || cached[0].id);
+        setSelectedTrip((prev) => pickTripId(cached, prev));
       }
       return;
     }
@@ -171,7 +183,8 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
   async function loadPlaces() {
     if (!selectedTrip) return;
     if (!isOnline) {
-      const cached = getPlacesCache(selectedTrip);
+      if (!cacheUserIdResolved) return;
+      const cached = getPlacesCache(cacheUserIdResolved, selectedTrip);
       const list = cached ?? [];
       setPlaces(filterPlacesLocal(list, search));
       return;
@@ -183,7 +196,9 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     });
     const list = res.data?.tripPlaces ?? [];
     setPlaces(list);
-    savePlacesCache(selectedTrip, list);
+    if (clerkUserId) {
+      savePlacesCache(clerkUserId, selectedTrip, list);
+    }
   }
 
   async function createPlace(formData: FormData) {
