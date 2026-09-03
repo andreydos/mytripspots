@@ -22,7 +22,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
-import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import { clearOfflineDataCache, clearSessionSnapshot, getSessionSnapshot, saveSessionSnapshot } from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -184,6 +184,7 @@ export function HomePageClient() {
   const { user } = useUser();
   const clerk = useClerk();
   const isSignedInRef = useRef(false);
+  const wasSignedInRef = useRef(false);
   isSignedInRef.current = Boolean(isSignedIn);
 
   useLayoutEffect(() => {
@@ -325,6 +326,7 @@ export function HomePageClient() {
     // If Clerk can't load a user (e.g., after reconnect), that's Clerk's issue, not ours.
     // We keep the last known good session until Clerk proves user is signed in again.
     if (isSignedIn) {
+      wasSignedInRef.current = true;
       saveSessionSnapshot({
         signedIn: true,
         userId: userId ?? undefined,
@@ -335,6 +337,13 @@ export function HomePageClient() {
           undefined,
         avatarUrl: user?.imageUrl || undefined
       });
+      return;
+    }
+
+    if (wasSignedInRef.current) {
+      wasSignedInRef.current = false;
+      clearSessionSnapshot();
+      clearOfflineDataCache();
     }
   }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
@@ -352,7 +361,6 @@ export function HomePageClient() {
     (connDown && probeSettled && probeOffline) ||
     clerkFailedRecovery
   );
-  const cachedTripsExist = Boolean(getTripsCache()?.length);
   const snapshot = offlineBypassClerk ? persistedSession : null;
   // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
   // dashboard with an auth spinner — keep showing trips until Clerk reports ready.
@@ -360,7 +368,7 @@ export function HomePageClient() {
     mounted &&
     !offlineBypassClerk &&
     !isLoaded &&
-    (persistedSession?.signedIn === true || cachedTripsExist);
+    persistedSession?.signedIn === true;
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
   const effectiveOnline = isOnline && !probeOffline;
@@ -402,6 +410,7 @@ export function HomePageClient() {
               displayName: snapshot.displayName,
               avatarUrl: snapshot.avatarUrl
             }}
+            cacheUserId={snapshot.userId}
           />
         ) : (
           <GuestLanding />
@@ -412,6 +421,7 @@ export function HomePageClient() {
             displayName: persistedSession?.displayName,
             avatarUrl: persistedSession?.avatarUrl
           }}
+          cacheUserId={persistedSession?.userId}
         />
       ) : (
         <>

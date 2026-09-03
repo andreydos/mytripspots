@@ -12,6 +12,7 @@ import { renderDashboard } from "../utils/render-dashboard";
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({
     isLoaded: true,
+    userId: "offline-user",
     getToken: async () => "test-token"
   }),
   SignedIn: ({ children }: { children: React.ReactNode }) => children,
@@ -23,7 +24,7 @@ vi.mock("@clerk/nextjs", () => ({
 describe("TravelDashboard offline", () => {
   beforeEach(() => {
     localStorage.clear();
-    saveTripsCache([{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }]);
+    saveTripsCache("offline-user", [{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }]);
   });
 
   it("saves a draft locally instead of calling createPlace when offline", async () => {
