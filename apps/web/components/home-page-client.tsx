@@ -239,12 +239,6 @@ export function HomePageClient() {
       return;
     }
 
-    if (isLoaded) {
-      setProbeOffline(false);
-      setProbeSettled(false);
-      return;
-    }
-
     setProbeSettled(false);
     let cancelled = false;
     const ac = new AbortController();
@@ -293,7 +287,7 @@ export function HomePageClient() {
       cancelled = true;
       ac.abort();
     };
-  }, [mounted, isLoaded, isOnline]);
+  }, [mounted, isOnline]);
 
   useEffect(() => {
     if (isLoaded) setClerkStalled(false);
