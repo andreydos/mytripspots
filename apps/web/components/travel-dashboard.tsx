@@ -193,7 +193,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     const lng = Number(formData.get("lng"));
     if (!selectedTrip || !title || Number.isNaN(lat) || Number.isNaN(lng)) return;
 
-    if (!isOnline) {
+    const saveDraft = () => {
       putDraft({
         localId: crypto.randomUUID(),
         tripId: selectedTrip,
@@ -203,14 +203,34 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         lng,
         updatedAt: Date.now()
       });
+    };
+
+    if (!isOnline) {
+      saveDraft();
       return;
     }
 
-    await client.mutate({
-      mutation: CreatePlaceDocument,
-      variables: { tripId: selectedTrip, title, notes, lat, lng }
-    });
-    await loadPlaces();
+    // Connectivity can be true while Clerk is still loading (bridge dashboard) or the token is unavailable.
+    if (!clerkAuthLoaded) {
+      saveDraft();
+      return;
+    }
+
+    const token = await getToken();
+    if (!token) {
+      saveDraft();
+      return;
+    }
+
+    try {
+      await client.mutate({
+        mutation: CreatePlaceDocument,
+        variables: { tripId: selectedTrip, title, notes, lat, lng }
+      });
+      await loadPlaces();
+    } catch {
+      saveDraft();
+    }
   }
 
   async function uploadPhoto() {
