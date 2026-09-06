@@ -103,7 +103,17 @@ Example Caddyfile: [`deploy/vps/Caddyfile.example`](../deploy/vps/Caddyfile.exam
 spotstogo.online, www.spotstogo.online {
     redir /mts / 301
     redir /mts/ / 301
-    reverse_proxy 127.0.0.1:3001
+    # Keep the Next.js /api/ping reachability probe on the web app (not FastAPI).
+    handle /api/ping {
+        reverse_proxy 127.0.0.1:3001
+    }
+    handle /api/* {
+        uri strip_prefix /api
+        reverse_proxy 127.0.0.1:8000
+    }
+    handle {
+        reverse_proxy 127.0.0.1:3001
+    }
 }
 
 api.spotstogo.online {

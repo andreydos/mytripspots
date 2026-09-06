@@ -67,5 +67,6 @@ describe("TravelDashboard offline", () => {
     expect(draft?.lat).toBe(64.15);
     expect(draft?.lng).toBe(-21.67);
     expect(createPlaceCalled).toBe(false);
+    expect(await screen.findByText("Offline waterfall")).toBeInTheDocument();
   });
 });
