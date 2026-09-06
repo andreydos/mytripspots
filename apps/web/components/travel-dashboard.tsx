@@ -26,7 +26,7 @@ import {
   Search,
   Upload
 } from "lucide-react";
-import { putDraft } from "@/lib/offline/drafts";
+import { getDrafts, putDraft } from "@/lib/offline/drafts";
 import {
   getPlacesCache,
   getTripsCache,
@@ -61,6 +61,20 @@ function filterPlacesLocal(places: CachedPlace[], q: string): CachedPlace[] {
       p.title.toLowerCase().includes(needle) ||
       (p.notes && p.notes.toLowerCase().includes(needle))
   );
+}
+
+function mergeTripDrafts(tripId: string, cached: CachedPlace[]): CachedPlace[] {
+  const draftPlaces = getDrafts()
+    .filter((draft) => draft.tripId === tripId)
+    .map((draft) => ({
+      id: draft.localId,
+      title: draft.title,
+      lat: draft.lat,
+      lng: draft.lng,
+      notes: draft.notes
+    }));
+  const seen = new Set(cached.map((place) => place.id));
+  return [...cached, ...draftPlaces.filter((draft) => !seen.has(draft.id))];
 }
 
 export type TravelDashboardProps = {
@@ -171,8 +185,8 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
   async function loadPlaces() {
     if (!selectedTrip) return;
     if (!isOnline) {
-      const cached = getPlacesCache(selectedTrip);
-      const list = cached ?? [];
+      const cached = getPlacesCache(selectedTrip) ?? [];
+      const list = mergeTripDrafts(selectedTrip, cached);
       setPlaces(filterPlacesLocal(list, search));
       return;
     }
@@ -203,6 +217,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         lng,
         updatedAt: Date.now()
       });
+      await loadPlaces();
       return;
     }
 
