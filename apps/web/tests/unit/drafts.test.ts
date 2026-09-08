@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDrafts, putDraft } from "@/lib/offline/drafts";
+import { getDrafts, putDraft, removeDraft } from "@/lib/offline/drafts";
 import { SEED_TRIP_ID } from "../fixtures/place";
 
 afterEach(() => {
@@ -65,5 +65,30 @@ describe("drafts", () => {
     });
 
     expect(getDrafts()).toHaveLength(2);
+  });
+
+  it("removes a draft by localId", () => {
+    putDraft({
+      localId: "remove-me",
+      tripId: SEED_TRIP_ID,
+      title: "Gone",
+      lat: 0,
+      lng: 0,
+      updatedAt: 1
+    });
+    putDraft({
+      localId: "keep-me",
+      tripId: SEED_TRIP_ID,
+      title: "Stay",
+      lat: 1,
+      lng: 1,
+      updatedAt: 2
+    });
+
+    removeDraft("remove-me");
+
+    const drafts = getDrafts();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.localId).toBe("keep-me");
   });
 });

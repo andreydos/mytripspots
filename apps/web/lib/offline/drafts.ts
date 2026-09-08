@@ -40,6 +40,11 @@ export function putDraft(draft: DraftPlace): void {
   localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
 }
 
+export function removeDraft(localId: string): void {
+  const next = getDrafts().filter((d) => d.localId !== localId);
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+}
+
 export function getPendingUploads(): PendingUpload[] {
   return parseStoredList<PendingUpload>(localStorage.getItem(PENDING_UPLOADS_KEY));
 }
