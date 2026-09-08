@@ -36,6 +36,16 @@ describe("drafts", () => {
     expect(drafts[0]?.lat).toBe(3);
   });
 
+  it("returns empty list for invalid draft JSON", () => {
+    localStorage.setItem("draft_places", "{not-json");
+    expect(getDrafts()).toEqual([]);
+  });
+
+  it("returns empty list when draft JSON is not an array", () => {
+    localStorage.setItem("draft_places", JSON.stringify({ bad: true }));
+    expect(getDrafts()).toEqual([]);
+  });
+
   it("keeps separate drafts for different localIds", () => {
     putDraft({
       localId: "a",

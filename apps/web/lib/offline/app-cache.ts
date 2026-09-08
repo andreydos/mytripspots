@@ -42,6 +42,14 @@ export function getSessionSnapshot(): SessionSnapshot | null {
   }
 }
 
+export function clearSessionSnapshot(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function saveTripsCache(trips: CachedTrip[]): void {
   try {
     localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));

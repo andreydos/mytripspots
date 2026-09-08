@@ -227,13 +227,20 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
       variables: { mime: compressed.type, sizeBytes: compressed.size, ext }
     });
     const upload = init.data?.initUpload;
-    if (!upload) return;
+    if (!upload) {
+      setUploadState("Upload failed — could not start upload");
+      return;
+    }
     setUploadState("Uploading...");
-    await fetch(upload.presignedUrl, {
+    const putResponse = await fetch(upload.presignedUrl, {
       method: "PUT",
       body: compressed,
       headers: { "Content-Type": compressed.type }
     });
+    if (!putResponse.ok) {
+      setUploadState(`Upload failed — storage returned ${putResponse.status}`);
+      return;
+    }
     await client.mutate({
       mutation: CompleteUploadDocument,
       variables: {
