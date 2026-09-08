@@ -22,7 +22,12 @@ import {
   WifiOff
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
-import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import {
+  clearSessionSnapshot,
+  getSessionSnapshot,
+  getTripsCache,
+  saveSessionSnapshot
+} from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -190,6 +195,7 @@ export function HomePageClient() {
     // Clean up old false sessions from localStorage to avoid conflicts
     const stored = getSessionSnapshot();
     if (stored?.signedIn === false) {
+      clearSessionSnapshot();
       if (typeof window !== "undefined" && window.localStorage) {
         window.localStorage.removeItem("__mytripspts_session");
       }

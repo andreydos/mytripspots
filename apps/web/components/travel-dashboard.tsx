@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useApolloClient } from "@apollo/client";
 import {
@@ -26,7 +26,7 @@ import {
   Search,
   Upload
 } from "lucide-react";
-import { putDraft } from "@/lib/offline/drafts";
+import { getDrafts, putDraft } from "@/lib/offline/drafts";
 import {
   getPlacesCache,
   getTripsCache,
@@ -36,6 +36,7 @@ import {
   type CachedTrip
 } from "@/lib/offline/app-cache";
 import { useConnectivity } from "@/lib/offline/connectivity-context";
+import { syncDrafts } from "@/lib/offline/sync";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,6 +83,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
   const [places, setPlaces] = useState<CachedPlace[]>([]);
   const [trips, setTrips] = useState<CachedTrip[]>([]);
   const [tripsRefreshing, setTripsRefreshing] = useState(false);
+  const draftSyncInFlight = useRef(false);
 
   const sortedPlaces = useMemo(() => places.slice().sort((a, b) => a.title.localeCompare(b.title)), [places]);
 
@@ -145,6 +147,55 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
       setTripsRefreshing(false);
     };
   }, [isOnline, clerkAuthLoaded, refreshTripsFromServer]);
+
+  const syncPendingDrafts = useCallback(async () => {
+    if (!isOnline || !clerkAuthLoaded) return;
+    const token = await getToken();
+    if (!token) return;
+    if (draftSyncInFlight.current) return;
+    if (!getDrafts().length) return;
+
+    draftSyncInFlight.current = true;
+    try {
+      const syncedTripIds = new Set<string>();
+      await syncDrafts(async (draft) => {
+        try {
+          await client.mutate({
+            mutation: CreatePlaceDocument,
+            variables: {
+              tripId: draft.tripId,
+              title: draft.title,
+              notes: draft.notes ?? "",
+              lat: draft.lat,
+              lng: draft.lng
+            }
+          });
+          syncedTripIds.add(draft.tripId);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+
+      if (selectedTrip && syncedTripIds.has(selectedTrip)) {
+        const res = await client.query<PlacesQuery>({
+          query: PlacesDocument,
+          variables: { tripId: selectedTrip, search: search || null },
+          fetchPolicy: "no-cache"
+        });
+        const list = res.data?.tripPlaces ?? [];
+        setPlaces(list);
+        savePlacesCache(selectedTrip, list);
+      }
+    } finally {
+      draftSyncInFlight.current = false;
+    }
+  }, [client, clerkAuthLoaded, getToken, isOnline, search, selectedTrip]);
+
+  useEffect(() => {
+    if (!isOnline || !clerkAuthLoaded) return;
+    void syncPendingDrafts();
+  }, [isOnline, clerkAuthLoaded, syncPendingDrafts]);
 
   async function loadTrips() {
     if (!isOnline) {
@@ -227,13 +278,20 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
       variables: { mime: compressed.type, sizeBytes: compressed.size, ext }
     });
     const upload = init.data?.initUpload;
-    if (!upload) return;
+    if (!upload) {
+      setUploadState("Upload failed — could not start upload");
+      return;
+    }
     setUploadState("Uploading...");
-    await fetch(upload.presignedUrl, {
+    const putResponse = await fetch(upload.presignedUrl, {
       method: "PUT",
       body: compressed,
       headers: { "Content-Type": compressed.type }
     });
+    if (!putResponse.ok) {
+      setUploadState(`Upload failed — storage returned ${putResponse.status}`);
+      return;
+    }
     await client.mutate({
       mutation: CompleteUploadDocument,
       variables: {

@@ -1,7 +1,11 @@
 import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomePageClient } from "@/components/home-page-client";
-import { saveSessionSnapshot, saveTripsCache } from "@/lib/offline/app-cache";
+import {
+  getSessionSnapshot,
+  saveSessionSnapshot,
+  saveTripsCache
+} from "@/lib/offline/app-cache";
 import { SEED_TRIP_ID } from "../fixtures/place";
 import { renderWithProviders } from "../utils/render-with-providers";
 
@@ -41,6 +45,17 @@ describe("HomePageClient offline", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Add place")).toBeInTheDocument();
+    });
+  });
+
+  it("clears a signed-out session snapshot on mount", async () => {
+    saveSessionSnapshot({ signedIn: false });
+    saveTripsCache([{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }]);
+
+    renderWithProviders(<HomePageClient />);
+
+    await waitFor(() => {
+      expect(getSessionSnapshot()).toBeNull();
     });
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDrafts, putDraft } from "@/lib/offline/drafts";
+import { getDrafts, putDraft, removeDraft } from "@/lib/offline/drafts";
 import { SEED_TRIP_ID } from "../fixtures/place";
 
 afterEach(() => {
@@ -36,6 +36,16 @@ describe("drafts", () => {
     expect(drafts[0]?.lat).toBe(3);
   });
 
+  it("returns empty list for invalid draft JSON", () => {
+    localStorage.setItem("draft_places", "{not-json");
+    expect(getDrafts()).toEqual([]);
+  });
+
+  it("returns empty list when draft JSON is not an array", () => {
+    localStorage.setItem("draft_places", JSON.stringify({ bad: true }));
+    expect(getDrafts()).toEqual([]);
+  });
+
   it("keeps separate drafts for different localIds", () => {
     putDraft({
       localId: "a",
@@ -55,5 +65,30 @@ describe("drafts", () => {
     });
 
     expect(getDrafts()).toHaveLength(2);
+  });
+
+  it("removes a draft by localId", () => {
+    putDraft({
+      localId: "remove-me",
+      tripId: SEED_TRIP_ID,
+      title: "Gone",
+      lat: 0,
+      lng: 0,
+      updatedAt: 1
+    });
+    putDraft({
+      localId: "keep-me",
+      tripId: SEED_TRIP_ID,
+      title: "Stay",
+      lat: 1,
+      lng: 1,
+      updatedAt: 2
+    });
+
+    removeDraft("remove-me");
+
+    const drafts = getDrafts();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.localId).toBe("keep-me");
   });
 });

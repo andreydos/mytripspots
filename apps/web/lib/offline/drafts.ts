@@ -20,9 +20,18 @@ export type PendingUpload = {
   updatedAt: number;
 };
 
+function parseStoredList<T>(raw: string | null): T[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as T[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function getDrafts(): DraftPlace[] {
-  const raw = localStorage.getItem(DRAFT_KEY);
-  return raw ? (JSON.parse(raw) as DraftPlace[]) : [];
+  return parseStoredList<DraftPlace>(localStorage.getItem(DRAFT_KEY));
 }
 
 export function putDraft(draft: DraftPlace): void {
@@ -31,9 +40,13 @@ export function putDraft(draft: DraftPlace): void {
   localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
 }
 
+export function removeDraft(localId: string): void {
+  const next = getDrafts().filter((d) => d.localId !== localId);
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+}
+
 export function getPendingUploads(): PendingUpload[] {
-  const raw = localStorage.getItem(PENDING_UPLOADS_KEY);
-  return raw ? (JSON.parse(raw) as PendingUpload[]) : [];
+  return parseStoredList<PendingUpload>(localStorage.getItem(PENDING_UPLOADS_KEY));
 }
 
 export function putPendingUpload(item: PendingUpload): void {
