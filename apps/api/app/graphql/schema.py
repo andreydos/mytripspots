@@ -182,6 +182,24 @@ class Mutation:
         user = _require_user(info)
         if not key.startswith(f"user/{user.id}/"):
             raise PermissionError("Invalid owner key prefix")
+
+        with SessionLocal() as session:
+            place = session.scalar(select(Place).join(Trip).where(Place.id == place_id, Trip.owner_id == user.id))
+            if not place:
+                raise PermissionError("Place not found")
+
+            existing = session.scalar(
+                select(PlacePhoto).where(
+                    PlacePhoto.r2_key == key,
+                    PlacePhoto.owner_id == user.id,
+                    PlacePhoto.deleted_at.is_(None),
+                )
+            )
+            if existing:
+                if str(existing.place_id) != place_id:
+                    raise PermissionError("Upload key already registered to another place")
+                return _photo_to_type(existing)
+
         object_meta = head_object(key)
         content_type = object_meta.get("ContentType")
         if content_type and content_type != mime:
@@ -192,6 +210,19 @@ class Mutation:
             place = session.scalar(select(Place).join(Trip).where(Place.id == place_id, Trip.owner_id == user.id))
             if not place:
                 raise PermissionError("Place not found")
+
+            existing = session.scalar(
+                select(PlacePhoto).where(
+                    PlacePhoto.r2_key == key,
+                    PlacePhoto.owner_id == user.id,
+                    PlacePhoto.deleted_at.is_(None),
+                )
+            )
+            if existing:
+                if str(existing.place_id) != place_id:
+                    raise PermissionError("Upload key already registered to another place")
+                return _photo_to_type(existing)
+
             photo = PlacePhoto(
                 place_id=place_id,
                 owner_id=user.id,

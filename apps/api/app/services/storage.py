@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import boto3
 from botocore.client import Config
+from botocore.exceptions import ClientError
 
 from app.settings import settings
 
@@ -40,4 +41,10 @@ def create_presigned_put_url(key: str, mime: str, expires_minutes: int = 5) -> s
 
 
 def head_object(key: str) -> dict:
-    return _s3_client().head_object(Bucket=settings.r2_bucket, Key=key)
+    try:
+        return _s3_client().head_object(Bucket=settings.r2_bucket, Key=key)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code")
+        if code in ("404", "NoSuchKey", "NotFound"):
+            raise ValueError("Upload object not found in storage") from exc
+        raise

@@ -124,3 +124,41 @@ def test_complete_upload_attaches_photo_to_owned_place(mock_head, client):
     assert photo["r2Key"] == key
     assert photo["mime"] == "image/webp"
     mock_head.assert_called_once_with(key)
+
+
+@patch("app.graphql.schema.head_object", return_value={"ContentType": "image/webp"})
+def test_complete_upload_is_idempotent_for_same_key_and_place(mock_head, client):
+    key = f"user/{SEED_USER_ID}/retry.webp"
+    first = graphql(
+        client,
+        COMPLETE_UPLOAD_MUTATION,
+        {"placeId": SEED_PLACE_ID, "key": key, "mime": "image/webp"},
+    )
+    second = graphql(
+        client,
+        COMPLETE_UPLOAD_MUTATION,
+        {"placeId": SEED_PLACE_ID, "key": key, "mime": "image/webp"},
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    first_body = first.json()
+    second_body = second.json()
+    assert "errors" not in first_body
+    assert "errors" not in second_body
+    assert first_body["data"]["completeUpload"]["id"] == second_body["data"]["completeUpload"]["id"]
+    mock_head.assert_called_once_with(key)
+
+
+@patch("app.graphql.schema.head_object", side_effect=ValueError("Upload object not found in storage"))
+def test_complete_upload_rejects_missing_r2_object(mock_head, client):
+    key = f"user/{SEED_USER_ID}/missing.webp"
+    response = graphql(
+        client,
+        COMPLETE_UPLOAD_MUTATION,
+        {"placeId": SEED_PLACE_ID, "key": key, "mime": "image/webp"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("errors")
+    assert any("Upload object not found in storage" in err.get("message", "") for err in body["errors"])
+    mock_head.assert_called_once_with(key)
