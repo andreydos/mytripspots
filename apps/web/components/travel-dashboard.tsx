@@ -186,6 +186,18 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     savePlacesCache(selectedTrip, list);
   }
 
+  /** Changing trip must reload pins; otherwise the map and photo picker keep the previous trip's places. */
+  useEffect(() => {
+    setSelectedPlaceId("");
+    if (!selectedTrip) {
+      setPlaces([]);
+      return;
+    }
+    void loadPlaces();
+    // Intentionally omit `search` — users still apply search via the Load places button.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when trip or connectivity changes only
+  }, [selectedTrip, isOnline]);
+
   async function createPlace(formData: FormData) {
     const title = String(formData.get("title") || "");
     const notes = String(formData.get("notes") || "");
