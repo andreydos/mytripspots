@@ -32,6 +32,7 @@ import {
   getTripsCache,
   savePlacesCache,
   saveTripsCache,
+  shouldPersistPlacesCache,
   type CachedPlace,
   type CachedTrip
 } from "@/lib/offline/app-cache";
@@ -183,7 +184,9 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     });
     const list = res.data?.tripPlaces ?? [];
     setPlaces(list);
-    savePlacesCache(selectedTrip, list);
+    if (shouldPersistPlacesCache(search)) {
+      savePlacesCache(selectedTrip, list);
+    }
   }
 
   async function createPlace(formData: FormData) {
