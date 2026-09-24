@@ -69,6 +69,11 @@ export function savePlacesCache(tripId: string, places: CachedPlace[]): void {
   }
 }
 
+/** Filtered server responses must not replace the full per-trip offline cache. */
+export function shouldPersistPlacesCache(search: string): boolean {
+  return !search.trim();
+}
+
 export function getPlacesCache(tripId: string): CachedPlace[] | null {
   try {
     const raw = localStorage.getItem(placesKey(tripId));
