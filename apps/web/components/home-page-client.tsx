@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
 import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import { probeSameOriginReachable } from "@/lib/offline/reachability";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -252,32 +253,9 @@ export function HomePageClient() {
 
     void (async () => {
       try {
-        const local = await fetch(`${window.location.origin}/api/ping`, {
-          method: "GET",
-          cache: "no-store",
-          signal: ac.signal
-        });
+        const reachable = await probeSameOriginReachable(window.location.origin, ac.signal);
         if (cancelled) return;
-        if (!local.ok) {
-          setProbeOffline(true);
-          return;
-        }
-        const ext = await fetch("https://dns.google/resolve?name=example.com&type=A", {
-          method: "GET",
-          cache: "no-store",
-          signal: ac.signal
-        });
-        if (cancelled) return;
-        if (!ext.ok) {
-          setProbeOffline(true);
-          return;
-        }
-        const body = (await ext.json()) as { Status?: number };
-        if (body.Status !== 0) {
-          setProbeOffline(true);
-          return;
-        }
-        setProbeOffline(false);
+        setProbeOffline(!reachable);
       } catch {
         if (cancelled) return;
         setProbeOffline(true);
