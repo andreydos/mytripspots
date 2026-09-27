@@ -41,6 +41,17 @@ graphql_app = GraphQLRouter(schema)
 app.include_router(graphql_app, prefix="/graphql")
 rate_windows: dict[str, deque[float]] = defaultdict(deque)
 
+_TRUSTED_PROXY_PEERS = frozenset({"127.0.0.1", "::1"})
+
+
+def _client_ip(request: Request) -> str:
+    peer = request.client.host if request.client else "unknown"
+    if peer in _TRUSTED_PROXY_PEERS:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+    return peer
+
 
 @app.middleware("http")
 async def request_id_and_logging(request: Request, call_next):
@@ -65,7 +76,7 @@ async def request_id_and_logging(request: Request, call_next):
 async def rate_limiter(request: Request, call_next):
     if request.method == "OPTIONS" or request.url.path in ("/health", "/ready"):
         return await call_next(request)
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     key = f"{ip}:{request.url.path}"
     now = time.time()
     window = rate_windows[key]
