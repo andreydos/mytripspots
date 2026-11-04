@@ -344,7 +344,13 @@ export function HomePageClient() {
   const persistedSession = getSessionSnapshot();
   // Clerk sometimes gets stuck at isLoaded:true, isSignedIn:false after reconnect.
   // If we have a saved session but Clerk reports no user, use the cached session as fallback.
-  const clerkFailedRecovery = isLoaded && !isSignedIn && persistedSession?.signedIn === true;
+  // Only recover cached session when connectivity is down. If Clerk reports signed-out while
+  // online, treat that as intentional sign-out — not a stale Clerk state after reconnect.
+  const clerkFailedRecovery =
+    isLoaded &&
+    !isSignedIn &&
+    persistedSession?.signedIn === true &&
+    (connDown || navigatorOffline);
   // If truly offline (navigator says so), bypass Clerk and use saved session
   const offlineBypassClerk = mounted && (
     navigatorOffline ||
