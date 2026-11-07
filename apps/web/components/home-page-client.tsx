@@ -352,7 +352,9 @@ export function HomePageClient() {
     (connDown && probeSettled && probeOffline) ||
     clerkFailedRecovery
   );
-  const cachedTripsExist = Boolean(getTripsCache()?.length);
+  const cachedTripsExist = Boolean(
+    persistedSession?.userId && getTripsCache(persistedSession.userId)?.length
+  );
   const snapshot = offlineBypassClerk ? persistedSession : null;
   // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
   // dashboard with an auth spinner — keep showing trips until Clerk reports ready.

@@ -14,10 +14,11 @@ afterEach(() => {
 });
 
 describe("app-cache", () => {
-  it("round-trips trips cache", () => {
+  it("round-trips trips cache scoped to userId", () => {
     const trips = [{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }];
-    saveTripsCache(trips);
-    expect(getTripsCache()).toEqual(trips);
+    saveTripsCache(trips, "user-a");
+    expect(getTripsCache("user-a")).toEqual(trips);
+    expect(getTripsCache("user-b")).toBeNull();
   });
 
   it("returns null for invalid session snapshot JSON", () => {
@@ -40,7 +41,13 @@ describe("app-cache", () => {
 
   it("returns null when trips cache is not an array", () => {
     localStorage.setItem("mytripspots_cached_trips", JSON.stringify({ bad: true }));
-    expect(getTripsCache()).toBeNull();
+    expect(getTripsCache("user-a")).toBeNull();
+  });
+
+  it("ignores legacy unscoped trips cache arrays", () => {
+    const trips = [{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }];
+    localStorage.setItem("mytripspots_cached_trips", JSON.stringify(trips));
+    expect(getTripsCache("user-a")).toBeNull();
   });
 
   it("round-trips places cache per trip", () => {
