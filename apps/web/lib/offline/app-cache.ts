@@ -14,6 +14,11 @@ export type SessionSnapshot = {
   savedAt: number;
 };
 
+type TripsCacheEnvelope = {
+  userId: string;
+  trips: CachedTrip[];
+};
+
 function placesKey(tripId: string): string {
   return `mytripspots_cached_places:${tripId}`;
 }
@@ -42,20 +47,26 @@ export function getSessionSnapshot(): SessionSnapshot | null {
   }
 }
 
-export function saveTripsCache(trips: CachedTrip[]): void {
+export function saveTripsCache(trips: CachedTrip[], userId: string): void {
+  if (!userId) return;
   try {
-    localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
+    const envelope: TripsCacheEnvelope = { userId, trips };
+    localStorage.setItem(TRIPS_KEY, JSON.stringify(envelope));
   } catch {
     /* ignore */
   }
 }
 
-export function getTripsCache(): CachedTrip[] | null {
+export function getTripsCache(userId?: string): CachedTrip[] | null {
   try {
     const raw = localStorage.getItem(TRIPS_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedTrip[];
-    return Array.isArray(parsed) ? parsed : null;
+    const parsed = JSON.parse(raw) as TripsCacheEnvelope | CachedTrip[];
+    // Legacy unscoped array caches are ignored — they could belong to another account on this device.
+    if (Array.isArray(parsed)) return null;
+    if (typeof parsed?.userId !== "string" || !Array.isArray(parsed.trips)) return null;
+    if (userId && parsed.userId !== userId) return null;
+    return parsed.trips;
   } catch {
     return null;
   }

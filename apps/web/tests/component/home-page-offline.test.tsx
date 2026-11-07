@@ -28,8 +28,8 @@ describe("HomePageClient offline", () => {
       value: false,
       configurable: true
     });
-    saveSessionSnapshot({ signedIn: true, displayName: "Demo User" });
-    saveTripsCache([{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }]);
+    saveSessionSnapshot({ signedIn: true, userId: "user-offline", displayName: "Demo User" });
+    saveTripsCache([{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }], "user-offline");
   });
 
   it("shows offline banner and dashboard from saved session when navigator is offline", async () => {
