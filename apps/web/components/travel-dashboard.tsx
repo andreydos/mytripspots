@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useApolloClient } from "@apollo/client";
 import {
@@ -27,6 +27,7 @@ import {
   Upload
 } from "lucide-react";
 import { putDraft } from "@/lib/offline/drafts";
+import { syncPlaceDrafts } from "@/lib/offline/sync";
 import {
   getPlacesCache,
   getTripsCache,
@@ -146,6 +147,27 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     };
   }, [isOnline, clerkAuthLoaded, refreshTripsFromServer]);
 
+  const loadPlacesAfterSyncRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => {
+    if (!isOnline || !clerkAuthLoaded) return;
+    let cancelled = false;
+
+    void (async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
+
+      const synced = await syncPlaceDrafts(client, () => cancelled);
+      if (!cancelled && synced > 0) {
+        await loadPlacesAfterSyncRef.current?.();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, clerkAuthLoaded, client, getToken]);
+
   async function loadTrips() {
     if (!isOnline) {
       const cached = getTripsCache();
@@ -168,7 +190,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     await loadTrips();
   }
 
-  async function loadPlaces() {
+  const loadPlaces = useCallback(async () => {
     if (!selectedTrip) return;
     if (!isOnline) {
       const cached = getPlacesCache(selectedTrip);
@@ -184,7 +206,9 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     const list = res.data?.tripPlaces ?? [];
     setPlaces(list);
     savePlacesCache(selectedTrip, list);
-  }
+  }, [client, isOnline, search, selectedTrip]);
+
+  loadPlacesAfterSyncRef.current = loadPlaces;
 
   async function createPlace(formData: FormData) {
     const title = String(formData.get("title") || "");
