@@ -27,6 +27,7 @@ import {
   Upload
 } from "lucide-react";
 import { putDraft } from "@/lib/offline/drafts";
+import { syncPlaceDrafts } from "@/lib/offline/sync";
 import {
   getPlacesCache,
   getTripsCache,
@@ -146,6 +147,50 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     };
   }, [isOnline, clerkAuthLoaded, refreshTripsFromServer]);
 
+  const loadPlaces = useCallback(async () => {
+    if (!selectedTrip) return;
+    if (!isOnline) {
+      const cached = getPlacesCache(selectedTrip);
+      const list = cached ?? [];
+      setPlaces(filterPlacesLocal(list, search));
+      return;
+    }
+    const res = await client.query<PlacesQuery>({
+      query: PlacesDocument,
+      variables: { tripId: selectedTrip, search: search || null },
+      fetchPolicy: "no-cache"
+    });
+    const list = res.data?.tripPlaces ?? [];
+    setPlaces(list);
+    savePlacesCache(selectedTrip, list);
+  }, [client, isOnline, search, selectedTrip]);
+
+  useEffect(() => {
+    if (!isOnline || !clerkAuthLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
+      await syncPlaceDrafts(async (draft) => {
+        await client.mutate({
+          mutation: CreatePlaceDocument,
+          variables: {
+            tripId: draft.tripId,
+            title: draft.title,
+            notes: draft.notes,
+            lat: draft.lat,
+            lng: draft.lng
+          }
+        });
+      });
+      if (cancelled) return;
+      await loadPlaces();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOnline, clerkAuthLoaded, client, getToken, loadPlaces]);
+
   async function loadTrips() {
     if (!isOnline) {
       const cached = getTripsCache();
@@ -166,24 +211,6 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     });
     setTripTitle("");
     await loadTrips();
-  }
-
-  async function loadPlaces() {
-    if (!selectedTrip) return;
-    if (!isOnline) {
-      const cached = getPlacesCache(selectedTrip);
-      const list = cached ?? [];
-      setPlaces(filterPlacesLocal(list, search));
-      return;
-    }
-    const res = await client.query<PlacesQuery>({
-      query: PlacesDocument,
-      variables: { tripId: selectedTrip, search: search || null },
-      fetchPolicy: "no-cache"
-    });
-    const list = res.data?.tripPlaces ?? [];
-    setPlaces(list);
-    savePlacesCache(selectedTrip, list);
   }
 
   async function createPlace(formData: FormData) {
