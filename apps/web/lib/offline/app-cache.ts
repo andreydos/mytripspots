@@ -42,6 +42,16 @@ export function getSessionSnapshot(): SessionSnapshot | null {
   }
 }
 
+/** Drop persisted sign-in and trip list (e.g. after an explicit online sign-out). */
+export function clearOfflineAuthCache(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(TRIPS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function saveTripsCache(trips: CachedTrip[]): void {
   try {
     localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
