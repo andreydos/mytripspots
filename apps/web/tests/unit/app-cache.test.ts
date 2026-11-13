@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  clearOfflineAuthCache,
   getPlacesCache,
   getSessionSnapshot,
   getTripsCache,
@@ -40,6 +41,14 @@ describe("app-cache", () => {
 
   it("returns null when trips cache is not an array", () => {
     localStorage.setItem("mytripspots_cached_trips", JSON.stringify({ bad: true }));
+    expect(getTripsCache()).toBeNull();
+  });
+
+  it("clearOfflineAuthCache removes session and trips", () => {
+    saveSessionSnapshot({ signedIn: true, displayName: "Demo User" });
+    saveTripsCache([{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }]);
+    clearOfflineAuthCache();
+    expect(getSessionSnapshot()).toBeNull();
     expect(getTripsCache()).toBeNull();
   });
 

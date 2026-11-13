@@ -22,7 +22,12 @@ import {
   WifiOff
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
-import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import {
+  clearOfflineAuthCache,
+  getSessionSnapshot,
+  getTripsCache,
+  saveSessionSnapshot
+} from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -338,13 +343,26 @@ export function HomePageClient() {
     }
   }, [isLoaded, isSignedIn, userId, user, isOnline, probeOffline]);
 
+  const effectiveOnline = isOnline && !probeOffline;
+
+  /** Online sign-out must not reuse cached session/trips (shared-device safety). */
+  useEffect(() => {
+    if (!mounted || !isLoaded || !effectiveOnline) return;
+    if (isSignedIn) return;
+    const persisted = getSessionSnapshot();
+    if (persisted?.signedIn) {
+      clearOfflineAuthCache();
+    }
+  }, [mounted, isLoaded, isSignedIn, effectiveOnline]);
+
   const connDown = connectivityDown(isOnline, probeOffline);
   const stallBypass = probeSettled && clerkStalled && !isLoaded;
   const navigatorOffline = typeof navigator !== "undefined" && !navigator.onLine;
   const persistedSession = getSessionSnapshot();
-  // Clerk sometimes gets stuck at isLoaded:true, isSignedIn:false after reconnect.
-  // If we have a saved session but Clerk reports no user, use the cached session as fallback.
-  const clerkFailedRecovery = isLoaded && !isSignedIn && persistedSession?.signedIn === true;
+  // Clerk may report isSignedIn:false while connectivity is down even though the user is still signed in.
+  // Only apply that fallback offline — not when online (that would bypass a real sign-out).
+  const clerkFailedRecovery =
+    connDown && isLoaded && !isSignedIn && persistedSession?.signedIn === true;
   // If truly offline (navigator says so), bypass Clerk and use saved session
   const offlineBypassClerk = mounted && (
     navigatorOffline ||
@@ -363,7 +381,6 @@ export function HomePageClient() {
     (persistedSession?.signedIn === true || cachedTripsExist);
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
-  const effectiveOnline = isOnline && !probeOffline;
 
   const connectivity = useMemo(
     () => ({ networkOnline: effectiveOnline, connectivityDown: connDown }),
