@@ -15,8 +15,9 @@ spotstogo.online, www.spotstogo.online {
 	redir /mts / 301
 	redir /mts/ / 301
 
-	# API on same domain (works without api.* DNS)
-	handle /api/* {
+	# GraphQL on same origin (NEXT_PUBLIC_API_GRAPHQL_URL=.../api/graphql).
+	# Do not proxy all of /api/* — Next.js serves /api/ping for connectivity probes.
+	handle /api/graphql {
 		uri strip_prefix /api
 		reverse_proxy 127.0.0.1:8000
 	}
