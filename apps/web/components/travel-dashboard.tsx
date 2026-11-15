@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useApolloClient } from "@apollo/client";
 import {
@@ -70,7 +70,9 @@ export type TravelDashboardProps = {
 export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps = {}) {
   const { networkOnline: isOnline } = useConnectivity();
   const client = useApolloClient();
-  const { getToken, isLoaded: clerkAuthLoaded } = useAuth();
+  const { getToken, isLoaded: clerkAuthLoaded, userId, isSignedIn } = useAuth();
+  const authSessionRef = useRef({ userId: userId ?? null, isSignedIn });
+  authSessionRef.current = { userId: userId ?? null, isSignedIn };
   const [tripTitle, setTripTitle] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -106,6 +108,9 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     async (opts?: { isCancelled?: () => boolean }) => {
       if (!clerkAuthLoaded) return;
 
+      const ownerUserId = authSessionRef.current.userId;
+      if (!ownerUserId || !authSessionRef.current.isSignedIn) return;
+
       const token = await getToken();
       if (opts?.isCancelled?.()) return;
 
@@ -119,8 +124,14 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
           query: TripsDocument,
           fetchPolicy: "no-cache"
         });
-        // Do not skip setTrips after the query: Strict Mode runs effect cleanup while this await
-        // is in flight; isCancelled would be true even though the result is still valid.
+        // Do not skip setTrips when only isCancelled is true: Strict Mode runs effect cleanup
+        // while this await is in flight. Still ignore the result after sign-out / account switch.
+
+        const current = authSessionRef.current;
+        if (current.userId !== ownerUserId || !current.isSignedIn) return;
+
+        const tokenAfter = await getToken();
+        if (!tokenAfter) return;
 
         const list = res.data?.myTrips ?? [];
 
@@ -176,14 +187,23 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
       setPlaces(filterPlacesLocal(list, search));
       return;
     }
+    const ownerUserId = authSessionRef.current.userId;
+    if (!ownerUserId || !authSessionRef.current.isSignedIn) return;
+
+    const tripId = selectedTrip;
     const res = await client.query<PlacesQuery>({
       query: PlacesDocument,
-      variables: { tripId: selectedTrip, search: search || null },
+      variables: { tripId, search: search || null },
       fetchPolicy: "no-cache"
     });
+
+    const current = authSessionRef.current;
+    if (current.userId !== ownerUserId || !current.isSignedIn) return;
+    if (tripId !== selectedTrip) return;
+
     const list = res.data?.tripPlaces ?? [];
     setPlaces(list);
-    savePlacesCache(selectedTrip, list);
+    savePlacesCache(tripId, list);
   }
 
   async function createPlace(formData: FormData) {
