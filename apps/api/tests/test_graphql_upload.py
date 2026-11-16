@@ -80,7 +80,10 @@ def test_complete_upload_rejects_foreign_key_prefix(client):
     assert any("Invalid owner key prefix" in err.get("message", "") for err in body["errors"])
 
 
-@patch("app.graphql.schema.head_object", return_value={"ContentType": "image/png"})
+@patch(
+    "app.graphql.schema.head_object",
+    return_value={"ContentType": "image/png", "ContentLength": 2048},
+)
 def test_complete_upload_rejects_mime_mismatch(mock_head, client):
     key = f"user/{SEED_USER_ID}/mismatch.webp"
     response = graphql(
@@ -95,7 +98,27 @@ def test_complete_upload_rejects_mime_mismatch(mock_head, client):
     mock_head.assert_called_once_with(key)
 
 
-@patch("app.graphql.schema.head_object", return_value={"ContentType": "image/webp"})
+@patch("app.graphql.schema.head_object")
+def test_complete_upload_rejects_oversized_stored_object(mock_head, client, monkeypatch):
+    monkeypatch.setattr("app.services.storage.settings.upload_max_mb", 4)
+    key = f"user/{SEED_USER_ID}/huge.webp"
+    mock_head.return_value = {"ContentType": "image/webp", "ContentLength": 4 * 1024 * 1024 + 1}
+    response = graphql(
+        client,
+        COMPLETE_UPLOAD_MUTATION,
+        {"placeId": SEED_PLACE_ID, "key": key, "mime": "image/webp"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body.get("errors")
+    assert any("exceeds 4 MB" in err.get("message", "") for err in body["errors"])
+    mock_head.assert_called_once_with(key)
+
+
+@patch(
+    "app.graphql.schema.head_object",
+    return_value={"ContentType": "image/webp", "ContentLength": 2048},
+)
 def test_complete_upload_rejects_foreign_place(mock_head, client):
     key = f"user/{SEED_USER_ID}/orphan.webp"
     response = graphql(
@@ -109,7 +132,10 @@ def test_complete_upload_rejects_foreign_place(mock_head, client):
     assert any("Place not found" in err.get("message", "") for err in body["errors"])
 
 
-@patch("app.graphql.schema.head_object", return_value={"ContentType": "image/webp"})
+@patch(
+    "app.graphql.schema.head_object",
+    return_value={"ContentType": "image/webp", "ContentLength": 2048},
+)
 def test_complete_upload_attaches_photo_to_owned_place(mock_head, client):
     key = f"user/{SEED_USER_ID}/happy.webp"
     response = graphql(

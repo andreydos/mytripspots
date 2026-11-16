@@ -20,10 +20,23 @@ def _s3_client():
     )
 
 
+def max_upload_bytes() -> int:
+    return settings.upload_max_mb * 1024 * 1024
+
+
 def validate_upload_request(mime: str, size_bytes: int) -> None:
     if mime not in ALLOWED_MIME_TYPES:
         raise ValueError("Unsupported mime type")
-    if size_bytes > settings.upload_max_mb * 1024 * 1024:
+    if size_bytes > max_upload_bytes():
+        raise ValueError(f"File exceeds {settings.upload_max_mb} MB limit")
+
+
+def validate_stored_object_size(object_meta: dict) -> None:
+    """Reject objects larger than the configured cap (init_upload size is not binding on PUT)."""
+    content_length = object_meta.get("ContentLength")
+    if content_length is None:
+        raise ValueError("Uploaded object missing Content-Length")
+    if int(content_length) > max_upload_bytes():
         raise ValueError(f"File exceeds {settings.upload_max_mb} MB limit")
 
 

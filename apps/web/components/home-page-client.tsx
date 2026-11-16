@@ -22,7 +22,7 @@ import {
   WifiOff
 } from "lucide-react";
 import { ConnectivityProvider } from "@/lib/offline/connectivity-context";
-import { getSessionSnapshot, getTripsCache, saveSessionSnapshot } from "@/lib/offline/app-cache";
+import { getSessionSnapshot, saveSessionSnapshot } from "@/lib/offline/app-cache";
 import { TravelDashboard } from "@/components/travel-dashboard";
 import { cn } from "@/lib/utils";
 
@@ -352,15 +352,11 @@ export function HomePageClient() {
     (connDown && probeSettled && probeOffline) ||
     clerkFailedRecovery
   );
-  const cachedTripsExist = Boolean(getTripsCache()?.length);
   const snapshot = offlineBypassClerk ? persistedSession : null;
-  // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
-  // dashboard with an auth spinner — keep showing trips until Clerk reports ready.
+  // After connectivity returns, Clerk can stay !isLoaded for a long time; keep the last known
+  // signed-in session visible until Clerk is ready — never infer sign-in from trip cache alone.
   const bridgeOnlineSignedInDashboard =
-    mounted &&
-    !offlineBypassClerk &&
-    !isLoaded &&
-    (persistedSession?.signedIn === true || cachedTripsExist);
+    mounted && !offlineBypassClerk && !isLoaded && persistedSession?.signedIn === true;
   const showOfflineBar = mounted && (connDown || stallBypass);
   const contentTopPad = showOfflineBar ? "pt-[max(3.25rem,calc(env(safe-area-inset-top)+2.75rem))]" : "";
   const effectiveOnline = isOnline && !probeOffline;
