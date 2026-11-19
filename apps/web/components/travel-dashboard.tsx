@@ -70,7 +70,7 @@ export type TravelDashboardProps = {
 export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps = {}) {
   const { networkOnline: isOnline } = useConnectivity();
   const client = useApolloClient();
-  const { getToken, isLoaded: clerkAuthLoaded } = useAuth();
+  const { getToken, isLoaded: clerkAuthLoaded, userId } = useAuth();
   const [tripTitle, setTripTitle] = useState("");
   const [selectedTrip, setSelectedTrip] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -85,22 +85,27 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
 
   const sortedPlaces = useMemo(() => places.slice().sort((a, b) => a.title.localeCompare(b.title)), [places]);
 
+  const cachedTripsForUser = useCallback(
+    () => getTripsCache(userId ?? undefined),
+    [userId]
+  );
+
   /** Show last-saved trips from localStorage immediately (online or offline). */
   useEffect(() => {
-    const cached = getTripsCache();
+    const cached = cachedTripsForUser();
     if (!cached?.length) return;
     setTrips((prev) => (prev.length ? prev : cached));
     setSelectedTrip((prev) => prev || cached[0].id);
-  }, []);
+  }, [cachedTripsForUser]);
 
   /** If we go offline with an empty list, fall back to cache (e.g. failed prior fetch). */
   useEffect(() => {
     if (isOnline) return;
-    const cached = getTripsCache();
+    const cached = cachedTripsForUser();
     if (!cached?.length) return;
     setTrips((prev) => (prev.length ? prev : cached));
     setSelectedTrip((prev) => prev || cached[0].id);
-  }, [isOnline]);
+  }, [isOnline, cachedTripsForUser]);
 
   const refreshTripsFromServer = useCallback(
     async (opts?: { isCancelled?: () => boolean }) => {
@@ -125,7 +130,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         const list = res.data?.myTrips ?? [];
 
         setTrips(list);
-        saveTripsCache(list);
+        saveTripsCache(list, userId);
         setSelectedTrip((prev) => prev || list[0]?.id || "");
       } catch {
         /* keep cached / in-memory list */
@@ -133,7 +138,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         setTripsRefreshing(false);
       }
     },
-    [client, clerkAuthLoaded, getToken]
+    [client, clerkAuthLoaded, getToken, userId]
   );
 
   useEffect(() => {
@@ -148,7 +153,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
 
   async function loadTrips() {
     if (!isOnline) {
-      const cached = getTripsCache();
+      const cached = cachedTripsForUser();
       if (cached?.length) {
         setTrips(cached);
         setSelectedTrip((prev) => prev || cached[0].id);

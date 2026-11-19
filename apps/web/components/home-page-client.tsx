@@ -239,12 +239,6 @@ export function HomePageClient() {
       return;
     }
 
-    if (isLoaded) {
-      setProbeOffline(false);
-      setProbeSettled(false);
-      return;
-    }
-
     setProbeSettled(false);
     let cancelled = false;
     const ac = new AbortController();
@@ -259,21 +253,6 @@ export function HomePageClient() {
         });
         if (cancelled) return;
         if (!local.ok) {
-          setProbeOffline(true);
-          return;
-        }
-        const ext = await fetch("https://dns.google/resolve?name=example.com&type=A", {
-          method: "GET",
-          cache: "no-store",
-          signal: ac.signal
-        });
-        if (cancelled) return;
-        if (!ext.ok) {
-          setProbeOffline(true);
-          return;
-        }
-        const body = (await ext.json()) as { Status?: number };
-        if (body.Status !== 0) {
           setProbeOffline(true);
           return;
         }
@@ -352,7 +331,7 @@ export function HomePageClient() {
     (connDown && probeSettled && probeOffline) ||
     clerkFailedRecovery
   );
-  const cachedTripsExist = Boolean(getTripsCache()?.length);
+  const cachedTripsExist = Boolean(getTripsCache(persistedSession?.userId)?.length);
   const snapshot = offlineBypassClerk ? persistedSession : null;
   // After connectivity returns, Clerk can stay !isLoaded for a long time; do not replace the cached
   // dashboard with an auth spinner — keep showing trips until Clerk reports ready.
