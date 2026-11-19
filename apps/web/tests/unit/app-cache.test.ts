@@ -16,8 +16,14 @@ afterEach(() => {
 describe("app-cache", () => {
   it("round-trips trips cache", () => {
     const trips = [{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }];
-    saveTripsCache(trips);
-    expect(getTripsCache()).toEqual(trips);
+    saveTripsCache(trips, "user_a");
+    expect(getTripsCache("user_a")).toEqual(trips);
+  });
+
+  it("rejects trips cache when userId does not match", () => {
+    const trips = [{ id: SEED_TRIP_ID, title: "Demo Trip", visibility: "private" }];
+    saveTripsCache(trips, "user_a");
+    expect(getTripsCache("user_b")).toBeNull();
   });
 
   it("returns null for invalid session snapshot JSON", () => {

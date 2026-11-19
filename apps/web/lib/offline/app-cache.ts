@@ -42,20 +42,54 @@ export function getSessionSnapshot(): SessionSnapshot | null {
   }
 }
 
-export function saveTripsCache(trips: CachedTrip[]): void {
+type TripsCacheEnvelope = {
+  userId?: string;
+  trips: CachedTrip[];
+};
+
+function parseTripsCache(raw: string): TripsCacheEnvelope | CachedTrip[] | null {
+  const parsed = JSON.parse(raw) as TripsCacheEnvelope | CachedTrip[];
+  if (Array.isArray(parsed)) return parsed;
+  if (parsed && Array.isArray(parsed.trips)) return parsed;
+  return null;
+}
+
+/** Reject cached trips that belong to another signed-in user (shared-browser account switch). */
+function tripsMatchUser(data: TripsCacheEnvelope | CachedTrip[], expectedUserId?: string | null): CachedTrip[] | null {
+  if (Array.isArray(data)) {
+    if (!expectedUserId) return data;
+    const snap = getSessionSnapshot();
+    if (snap?.userId && snap.userId !== expectedUserId) return null;
+    if (!snap?.userId) return null;
+    return data;
+  }
+  const trips = data.trips;
+  if (!expectedUserId) return trips;
+  if (data.userId && data.userId !== expectedUserId) return null;
+  if (!data.userId) {
+    const snap = getSessionSnapshot();
+    if (snap?.userId && snap.userId !== expectedUserId) return null;
+    if (!snap?.userId) return null;
+  }
+  return trips;
+}
+
+export function saveTripsCache(trips: CachedTrip[], userId?: string | null): void {
   try {
-    localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
+    const payload: TripsCacheEnvelope = { trips, ...(userId ? { userId } : {}) };
+    localStorage.setItem(TRIPS_KEY, JSON.stringify(payload));
   } catch {
     /* ignore */
   }
 }
 
-export function getTripsCache(): CachedTrip[] | null {
+export function getTripsCache(expectedUserId?: string | null): CachedTrip[] | null {
   try {
     const raw = localStorage.getItem(TRIPS_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as CachedTrip[];
-    return Array.isArray(parsed) ? parsed : null;
+    const parsed = parseTripsCache(raw);
+    if (!parsed) return null;
+    return tripsMatchUser(parsed, expectedUserId);
   } catch {
     return null;
   }
