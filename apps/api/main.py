@@ -42,6 +42,19 @@ app.include_router(graphql_app, prefix="/graphql")
 rate_windows: dict[str, deque[float]] = defaultdict(deque)
 
 
+def _client_ip(request: Request) -> str:
+    """Resolve the caller IP; honor proxy headers when the peer is local (Caddy on VPS)."""
+    peer = request.client.host if request.client else "unknown"
+    if peer in ("127.0.0.1", "::1"):
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip.strip()
+    return peer
+
+
 @app.middleware("http")
 async def request_id_and_logging(request: Request, call_next):
     request_id = str(uuid.uuid4())
@@ -65,7 +78,7 @@ async def request_id_and_logging(request: Request, call_next):
 async def rate_limiter(request: Request, call_next):
     if request.method == "OPTIONS" or request.url.path in ("/health", "/ready"):
         return await call_next(request)
-    ip = request.client.host if request.client else "unknown"
+    ip = _client_ip(request)
     key = f"{ip}:{request.url.path}"
     now = time.time()
     window = rate_windows[key]
