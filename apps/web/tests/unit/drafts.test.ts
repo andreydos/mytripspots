@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDrafts, putDraft } from "@/lib/offline/drafts";
+import { getDrafts, mergePlacesWithDrafts, putDraft } from "@/lib/offline/drafts";
 import { SEED_TRIP_ID } from "../fixtures/place";
 
 afterEach(() => {
@@ -55,5 +55,22 @@ describe("drafts", () => {
     });
 
     expect(getDrafts()).toHaveLength(2);
+  });
+
+  it("mergePlacesWithDrafts appends draft pins not already in the server list", () => {
+    putDraft({
+      localId: "draft-99",
+      tripId: SEED_TRIP_ID,
+      title: "Offline pin",
+      notes: "draft",
+      lat: 10,
+      lng: 20,
+      updatedAt: 1
+    });
+    const merged = mergePlacesWithDrafts(SEED_TRIP_ID, [
+      { id: "server-1", title: "Server", lat: 0, lng: 0, notes: null }
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged[1]).toMatchObject({ id: "draft-99", title: "Offline pin", lat: 10, lng: 20 });
   });
 });

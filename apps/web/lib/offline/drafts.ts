@@ -1,3 +1,5 @@
+import type { CachedPlace } from "./app-cache";
+
 const DRAFT_KEY = "draft_places";
 const PENDING_UPLOADS_KEY = "pending_uploads";
 
@@ -29,6 +31,23 @@ export function putDraft(draft: DraftPlace): void {
   const next = getDrafts().filter((d) => d.localId !== draft.localId);
   next.push(draft);
   localStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+}
+
+/** Overlay offline drafts onto cached/server places for map and pickers (draft ids are localIds). */
+export function mergePlacesWithDrafts(tripId: string, places: CachedPlace[]): CachedPlace[] {
+  const drafts = getDrafts().filter((d) => d.tripId === tripId);
+  if (!drafts.length) return places;
+  const knownIds = new Set(places.map((p) => p.id));
+  const fromDrafts: CachedPlace[] = drafts
+    .filter((d) => !knownIds.has(d.localId))
+    .map((d) => ({
+      id: d.localId,
+      title: d.title,
+      lat: d.lat,
+      lng: d.lng,
+      notes: d.notes ?? null
+    }));
+  return fromDrafts.length ? [...places, ...fromDrafts] : places;
 }
 
 export function getPendingUploads(): PendingUpload[] {

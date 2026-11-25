@@ -26,7 +26,7 @@ import {
   Search,
   Upload
 } from "lucide-react";
-import { putDraft } from "@/lib/offline/drafts";
+import { mergePlacesWithDrafts, putDraft } from "@/lib/offline/drafts";
 import {
   getPlacesCache,
   getTripsCache,
@@ -172,7 +172,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
     if (!selectedTrip) return;
     if (!isOnline) {
       const cached = getPlacesCache(selectedTrip);
-      const list = cached ?? [];
+      const list = mergePlacesWithDrafts(selectedTrip, cached ?? []);
       setPlaces(filterPlacesLocal(list, search));
       return;
     }
@@ -182,7 +182,7 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
       fetchPolicy: "no-cache"
     });
     const list = res.data?.tripPlaces ?? [];
-    setPlaces(list);
+    setPlaces(filterPlacesLocal(mergePlacesWithDrafts(selectedTrip, list), search));
     savePlacesCache(selectedTrip, list);
   }
 
@@ -203,6 +203,8 @@ export function TravelDashboard({ accountOfflineProfile }: TravelDashboardProps 
         lng,
         updatedAt: Date.now()
       });
+      const cached = getPlacesCache(selectedTrip) ?? [];
+      setPlaces(filterPlacesLocal(mergePlacesWithDrafts(selectedTrip, cached), search));
       return;
     }
 
