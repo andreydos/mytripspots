@@ -79,3 +79,25 @@ export function getPlacesCache(tripId: string): CachedPlace[] | null {
     return null;
   }
 }
+
+const PLACES_KEY_PREFIX = "mytripspots_cached_places:";
+
+/** Resolve a place from any trip-scoped offline cache (e.g. place detail while offline). */
+export function findCachedPlaceById(
+  placeId: string
+): { place: CachedPlace; tripId: string } | null {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(PLACES_KEY_PREFIX)) continue;
+      const tripId = key.slice(PLACES_KEY_PREFIX.length);
+      const places = getPlacesCache(tripId);
+      if (!places) continue;
+      const place = places.find((p) => p.id === placeId);
+      if (place) return { place, tripId };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}

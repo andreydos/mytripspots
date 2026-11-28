@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  findCachedPlaceById,
   getPlacesCache,
   getSessionSnapshot,
   getTripsCache,
@@ -59,5 +60,24 @@ describe("app-cache", () => {
     ];
     savePlacesCache(SEED_TRIP_ID, places);
     expect(getPlacesCache(SEED_TRIP_ID)).toEqual(places);
+  });
+
+  it("finds a place by id across trip caches", () => {
+    const places = [
+      {
+        id: SEED_PLACE_ID,
+        title: "London",
+        lat: 51.5072,
+        lng: -0.1276,
+        notes: "Seed place"
+      }
+    ];
+    savePlacesCache(SEED_TRIP_ID, places);
+
+    expect(findCachedPlaceById(SEED_PLACE_ID)).toEqual({
+      place: places[0],
+      tripId: SEED_TRIP_ID
+    });
+    expect(findCachedPlaceById("missing")).toBeNull();
   });
 });

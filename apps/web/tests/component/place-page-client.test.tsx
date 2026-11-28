@@ -1,12 +1,21 @@
 import { screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PlacePageClient } from "@/components/place-page-client";
-import { SEED_PLACE_ID } from "../fixtures/place";
+import { savePlacesCache } from "@/lib/offline/app-cache";
+import { SEED_PLACE_ID, SEED_TRIP_ID } from "../fixtures/place";
 import { placeErrorHandlers, placeNotFoundHandlers } from "../mocks/graphql-handlers";
 import { server } from "../mocks/server";
 import { renderWithProviders } from "../utils/render-with-providers";
 
 describe("PlacePageClient", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("shows place details when GraphQL returns a place", async () => {
     renderWithProviders(<PlacePageClient placeId={SEED_PLACE_ID} />);
 
@@ -33,5 +42,41 @@ describe("PlacePageClient", () => {
 
     expect(await screen.findByText("Could not load place")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  });
+
+  it("loads place from offline cache when navigator is offline", async () => {
+    savePlacesCache(SEED_TRIP_ID, [
+      {
+        id: SEED_PLACE_ID,
+        title: "Cached London",
+        lat: 51.5072,
+        lng: -0.1276,
+        notes: "Cached notes"
+      }
+    ]);
+
+    vi.stubGlobal("navigator", { ...navigator, onLine: false });
+
+    renderWithProviders(<PlacePageClient placeId={SEED_PLACE_ID} />);
+
+    expect(await screen.findByText("Cached London")).toBeInTheDocument();
+    expect(screen.getByText("Cached notes")).toBeInTheDocument();
+  });
+
+  it("falls back to offline cache when GraphQL fails", async () => {
+    savePlacesCache(SEED_TRIP_ID, [
+      {
+        id: SEED_PLACE_ID,
+        title: "Cached fallback",
+        lat: 51.5072,
+        lng: -0.1276,
+        notes: null
+      }
+    ]);
+    server.use(...placeErrorHandlers());
+
+    renderWithProviders(<PlacePageClient placeId={SEED_PLACE_ID} />);
+
+    expect(await screen.findByText("Cached fallback")).toBeInTheDocument();
   });
 });

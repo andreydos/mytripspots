@@ -17,6 +17,7 @@ import {
   type LucideIcon
 } from "lucide-react";
 import { PlaceDocument, type PlaceQuery } from "@/graphql/generated/graphql";
+import { findCachedPlaceById, type CachedPlace } from "@/lib/offline/app-cache";
 import { formatCoord, formatWhen, shortId } from "@/lib/place-display";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,32 @@ type LoadState = "loading" | "ready" | "not-found" | "error";
 export type PlacePageClientProps = {
   placeId: string;
 };
+
+function placeDetailsFromCache(cached: CachedPlace, tripId: string): PlaceDetails {
+  const withExtras = cached as CachedPlace & {
+    tripId?: string;
+    visitedAt?: string | null;
+    createdAt?: string;
+    photos?: PlaceDetails["photos"];
+  };
+  return {
+    id: cached.id,
+    tripId: withExtras.tripId ?? tripId,
+    title: cached.title,
+    lat: cached.lat,
+    lng: cached.lng,
+    notes: cached.notes ?? null,
+    visitedAt: withExtras.visitedAt ?? null,
+    createdAt: withExtras.createdAt ?? "",
+    photos: withExtras.photos ?? []
+  };
+}
+
+function tryLoadPlaceFromCache(placeId: string): PlaceDetails | null {
+  const hit = findCachedPlaceById(placeId);
+  if (!hit) return null;
+  return placeDetailsFromCache(hit.place, hit.tripId);
+}
 
 function MetaItem({
   icon: Icon,
@@ -62,6 +89,23 @@ export function PlacePageClient({ placeId }: PlacePageClientProps) {
 
   const loadPlace = useCallback(async () => {
     setLoadState("loading");
+
+    const navigatorOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    const applyCached = (): boolean => {
+      const fromCache = tryLoadPlaceFromCache(placeId);
+      if (!fromCache) return false;
+      setPlace(fromCache);
+      setLoadState("ready");
+      return true;
+    };
+
+    if (navigatorOffline) {
+      if (applyCached()) return;
+      setPlace(null);
+      setLoadState("error");
+      return;
+    }
+
     try {
       const res = await client.query<PlaceQuery>({
         query: PlaceDocument,
@@ -69,9 +113,16 @@ export function PlacePageClient({ placeId }: PlacePageClientProps) {
         fetchPolicy: "no-cache"
       });
       const next = res.data?.place ?? null;
-      setPlace(next);
-      setLoadState(next ? "ready" : "not-found");
+      if (next) {
+        setPlace(next);
+        setLoadState("ready");
+        return;
+      }
+      if (applyCached()) return;
+      setPlace(null);
+      setLoadState("not-found");
     } catch {
+      if (applyCached()) return;
       setPlace(null);
       setLoadState("error");
     }
